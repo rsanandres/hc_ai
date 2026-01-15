@@ -6,8 +6,8 @@ A production-ready system for processing FHIR (Fast Healthcare Interoperability 
 
 The system consists of three main components:
 
-1. **Go Parser** (`POC/main.go`) - Efficiently parses FHIR Bundle JSON files and extracts resources
-2. **Python API** (`POC/main.py`) - FastAPI service that accepts FHIR resources and processes them asynchronously
+1. **Go Parser** (`POC_embeddings/main.go`) - Efficiently parses FHIR Bundle JSON files and extracts resources
+2. **Python API** (`POC_embeddings/main.py`) - FastAPI service that accepts FHIR resources and processes them asynchronously
 3. **PostgreSQL Vector Store** (`postgres/langchain-postgres.py`) - Stores chunks with 1024-dimensional embeddings using pgvector
 
 ### Data Flow
@@ -36,7 +36,6 @@ cd hc_ai
 ### 2. Install Python Dependencies
 
 ```bash
-cd POC
 pip install -r requirements.txt
 ```
 
@@ -88,7 +87,7 @@ ollama pull mxbai-embed-large:latest
 ### 6. Start the Python API
 
 ```bash
-cd POC
+cd POC_embeddings
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -99,7 +98,7 @@ The API will be available at `http://localhost:8000`
 In a separate terminal, run the Go parser:
 
 ```bash
-cd POC
+cd POC_embeddings
 go run main.go
 ```
 
@@ -290,7 +289,7 @@ curl http://localhost:8000/db/errors?limit=10 | python3 -m json.tool
 
 ```
 hc_ai/
-├── POC/
+├── POC_embeddings/
 │   ├── main.py              # FastAPI service
 │   ├── main.go              # Go FHIR parser
 │   ├── helper.py            # Chunking, embeddings, processing

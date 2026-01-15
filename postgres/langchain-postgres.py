@@ -16,9 +16,9 @@ from langchain_postgres import PGVectorStore, PGEngine
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
-# Add parent directory to path to import from POC/helper.py
+# Add parent directory to path to import from POC_embeddings/helper.py
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from POC.helper import get_chunk_embedding
+from POC_embeddings.helper import get_chunk_embedding
 
 # Queue persistence helper
 from postgres.queue_storage import (
@@ -89,7 +89,7 @@ _queue_stats = {
 
 class CustomEmbeddings(Embeddings):
     """
-    Custom LangChain embeddings wrapper that uses get_chunk_embedding from POC/main.py.
+    Custom LangChain embeddings wrapper that uses get_chunk_embedding from POC_embeddings/main.py.
     This ensures we use the same embedding provider and configuration as process_and_store.
     """
     

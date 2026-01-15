@@ -36,5 +36,5 @@ Key variables:
 
 ## Notes
 - In-memory cache reduces repeated scoring for identical query–doc sets.
-- This retrieval pipeline is separate from ingestion (`POC/`) and should not
+- This retrieval pipeline is separate from ingestion (`POC_embeddings/`) and should not
   interfere with the running ingestion processes.

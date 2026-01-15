@@ -256,13 +256,13 @@ Potential improvements:
 
 1. **Start Python FastAPI Server:**
    ```bash
-   cd POC
+   cd POC_embeddings
    python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 
 2. **Run Go Program:**
    ```bash
-   cd POC
+   cd POC_embeddings
    go run main.go
    ```
 

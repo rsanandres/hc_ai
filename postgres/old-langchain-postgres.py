@@ -11,9 +11,9 @@ from sqlalchemy import text
 from langchain_postgres import PGVectorStore, PGEngine
 from langchain_core.documents import Document
 
-# Add parent directory to path to import from POC/helper.py
+# Add parent directory to path to import from POC_embeddings/helper.py
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from POC.helper import get_chunk_embedding
+from POC_embeddings.helper import get_chunk_embedding
 
 
 # Search for .env file
