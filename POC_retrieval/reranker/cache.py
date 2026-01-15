@@ -37,7 +37,7 @@ class InMemoryCache:
         self._stats = CacheStats()
 
     def get(self, key: str) -> Optional[List[Tuple[str, float]]]:
-        now = time.time()
+        now = time.monotonic()
         with self._lock:
             entry = self._store.get(key)
             if not entry:
@@ -54,11 +54,14 @@ class InMemoryCache:
             return value
 
     def set(self, key: str, value: List[Tuple[str, float]]) -> None:
-        expires_at = time.time() + self._ttl_seconds
+        if self._ttl_seconds <= 0 or self._max_size <= 0:
+            return
+        expires_at = time.monotonic() + self._ttl_seconds
         with self._lock:
+            self._purge_expired(now=time.monotonic())
             if key in self._store:
                 self._store.move_to_end(key)
-            self._store[key] = (expires_at, value)
+            self._store[key] = (expires_at, list(value))
             self._evict_if_needed()
 
     def stats(self) -> Dict[str, int]:
@@ -72,3 +75,8 @@ class InMemoryCache:
     def _evict_if_needed(self) -> None:
         while len(self._store) > self._max_size:
             self._store.popitem(last=False)
+
+    def _purge_expired(self, now: float) -> None:
+        expired_keys = [key for key, (expires_at, _) in self._store.items() if expires_at <= now]
+        for key in expired_keys:
+            self._store.pop(key, None)

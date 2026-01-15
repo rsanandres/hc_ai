@@ -27,7 +27,7 @@ from .models import (
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-RERANKER_MODEL = os.getenv("RERANKER_MODEL", "sentence-transformers/ms-marco-MiniLM-L-6-v2")
+RERANKER_MODEL = os.getenv("RERANKER_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 RERANKER_DEVICE = os.getenv("RERANKER_DEVICE", "auto")
 DEFAULT_K_RETRIEVE = int(os.getenv("RERANKER_K_RETRIEVE", "50"))
 DEFAULT_K_RETURN = int(os.getenv("RERANKER_K_RETURN", "10"))
