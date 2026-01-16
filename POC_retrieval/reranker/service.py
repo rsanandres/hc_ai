@@ -20,8 +20,12 @@ from .models import (
     DocumentResponse,
     RerankRequest,
     RerankResponse,
+    SessionSummaryUpdate,
+    SessionTurnRequest,
+    SessionTurnResponse,
     StatsResponse,
 )
+from session.store_dynamodb import SessionStore
 
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -33,12 +37,21 @@ DEFAULT_K_RETRIEVE = int(os.getenv("RERANKER_K_RETRIEVE", "50"))
 DEFAULT_K_RETURN = int(os.getenv("RERANKER_K_RETURN", "10"))
 CACHE_TTL = int(os.getenv("CACHE_TTL", "3600"))
 CACHE_MAX_SIZE = int(os.getenv("CACHE_MAX_SIZE", "10000"))
+SESSION_RECENT_LIMIT = int(os.getenv("SESSION_RECENT_LIMIT", "10"))
+
+DDB_REGION = os.getenv("AWS_REGION", "us-east-1")
+DDB_TURNS_TABLE = os.getenv("DDB_TURNS_TABLE", "hcai_session_turns")
+DDB_SUMMARY_TABLE = os.getenv("DDB_SUMMARY_TABLE", "hcai_session_summary")
+DDB_ENDPOINT = os.getenv("DDB_ENDPOINT")
+DDB_TTL_DAYS = os.getenv("DDB_TTL_DAYS")
+DDB_AUTO_CREATE = os.getenv("DDB_AUTO_CREATE", "false").lower() in {"1", "true", "yes"}
 
 
 app = FastAPI()
 
 _reranker: Optional[Reranker] = None
 _cache: Optional[InMemoryCache] = None
+_session_store: Optional[SessionStore] = None
 
 
 def _get_reranker() -> Reranker:
@@ -53,6 +66,24 @@ def _get_cache() -> InMemoryCache:
     if _cache is None:
         _cache = InMemoryCache(ttl_seconds=CACHE_TTL, max_size=CACHE_MAX_SIZE)
     return _cache
+
+
+def _get_session_store() -> SessionStore:
+    global _session_store
+    if _session_store is None:
+        ttl_days_int: Optional[int] = None
+        if DDB_TTL_DAYS and DDB_TTL_DAYS.isdigit():
+            ttl_days_int = int(DDB_TTL_DAYS)
+        _session_store = SessionStore(
+            region_name=DDB_REGION,
+            turns_table=DDB_TURNS_TABLE,
+            summary_table=DDB_SUMMARY_TABLE,
+            endpoint_url=DDB_ENDPOINT,
+            ttl_days=ttl_days_int,
+            max_recent=SESSION_RECENT_LIMIT,
+            auto_create=DDB_AUTO_CREATE,
+        )
+    return _session_store
 
 
 def _load_postgres_module():
@@ -164,3 +195,44 @@ async def rerank_stats() -> StatsResponse:
         cache_misses=stats["misses"],
         cache_size=stats["size"],
     )
+
+
+# ---------------- Session memory endpoints (DynamoDB) ---------------- #
+
+
+@app.post("/session/turn", response_model=SessionTurnResponse)
+def append_session_turn(payload: SessionTurnRequest) -> SessionTurnResponse:
+    store = _get_session_store()
+    store.append_turn(
+        session_id=payload.session_id,
+        role=payload.role,
+        text=payload.text,
+        meta=payload.meta,
+        patient_id=payload.patient_id,
+    )
+    recent = store.get_recent(payload.session_id, limit=payload.return_limit or SESSION_RECENT_LIMIT)
+    summary = store.get_summary(payload.session_id)
+    return SessionTurnResponse(session_id=payload.session_id, recent_turns=recent, summary=summary)
+
+
+@app.get("/session/{session_id}", response_model=SessionTurnResponse)
+def get_session_state(session_id: str, limit: int = SESSION_RECENT_LIMIT) -> SessionTurnResponse:
+    store = _get_session_store()
+    recent = store.get_recent(session_id, limit=limit)
+    summary = store.get_summary(session_id)
+    return SessionTurnResponse(session_id=session_id, recent_turns=recent, summary=summary)
+
+
+@app.post("/session/summary")
+def update_session_summary(payload: SessionSummaryUpdate) -> Dict[str, Any]:
+    store = _get_session_store()
+    store.update_summary(session_id=payload.session_id, summary=payload.summary, patient_id=payload.patient_id)
+    summary = store.get_summary(payload.session_id)
+    return {"session_id": payload.session_id, "summary": summary}
+
+
+@app.delete("/session/{session_id}")
+def clear_session(session_id: str) -> Dict[str, str]:
+    store = _get_session_store()
+    store.clear_session(session_id)
+    return {"status": "cleared", "session_id": session_id}

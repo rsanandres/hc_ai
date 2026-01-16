@@ -38,3 +38,20 @@ Key variables:
 - In-memory cache reduces repeated scoring for identical query–doc sets.
 - This retrieval pipeline is separate from ingestion (`POC_embeddings/`) and should not
   interfere with the running ingestion processes.
+
+## Session Memory (DynamoDB, no Redis)
+- The reranker service now exposes session endpoints backed solely by DynamoDB to keep recent turns and a session summary.
+- Endpoints:
+  - `POST /session/turn` (body: `session_id`, `role`, `text`, optional `meta`, `patient_id`, `return_limit`) → appends a turn and returns recent turns + summary.
+  - `GET /session/{session_id}` (query: `limit`) → returns recent turns + summary.
+  - `POST /session/summary` (body: `session_id`, `summary`, optional `patient_id`) → updates summary.
+  - `DELETE /session/{session_id}` → clears all turns + summary.
+- Environment:
+  - `AWS_REGION` (default `us-east-1`)
+  - `DDB_TURNS_TABLE` (default `hcai_session_turns`)
+  - `DDB_SUMMARY_TABLE` (default `hcai_session_summary`)
+  - `DDB_ENDPOINT` (set to `http://localhost:8000` for DynamoDB local)
+  - `DDB_TTL_DAYS` (optional TTL for turns/summary)
+  - `DDB_AUTO_CREATE` (`true` to auto-create tables; off by default)
+  - `SESSION_RECENT_LIMIT` (default `10`)
+- Local dev: `POC_retrieval/docker-compose.yml` runs DynamoDB Local on `localhost:8000`; set `DDB_ENDPOINT=http://localhost:8000` to target it.
