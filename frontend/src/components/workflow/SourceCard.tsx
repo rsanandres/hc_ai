@@ -13,6 +13,11 @@ interface SourceCardProps {
 export function SourceCard({ source, index }: SourceCardProps) {
   const metadata = source.metadata || {};
   
+  // Safely extract metadata values as strings
+  const resourceType = metadata.resourceType ? String(metadata.resourceType) : null;
+  const effectiveDate = metadata.effectiveDate ? String(metadata.effectiveDate).split('T')[0] : null;
+  const patientId = metadata.patientId ? String(metadata.patientId).slice(0, 8) : null;
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -76,28 +81,28 @@ export function SourceCard({ source, index }: SourceCardProps) {
         </Box>
 
         {/* Metadata chips */}
-        {(metadata.resourceType || metadata.effectiveDate || metadata.patientId) && (
+        {(resourceType || effectiveDate || patientId) && (
           <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
-            {metadata.resourceType && (
+            {resourceType && (
               <Chip
                 size="small"
-                label={String(metadata.resourceType)}
+                label={resourceType}
                 sx={{ height: 18, fontSize: '0.65rem' }}
               />
             )}
-            {metadata.effectiveDate && (
+            {effectiveDate && (
               <Chip
                 size="small"
                 icon={<Calendar size={10} />}
-                label={String(metadata.effectiveDate).split('T')[0]}
+                label={effectiveDate}
                 sx={{ height: 18, fontSize: '0.65rem', '& .MuiChip-icon': { ml: 0.5 } }}
               />
             )}
-            {metadata.patientId && (
+            {patientId && (
               <Chip
                 size="small"
                 icon={<User size={10} />}
-                label={String(metadata.patientId).slice(0, 8)}
+                label={patientId}
                 sx={{ height: 18, fontSize: '0.65rem', '& .MuiChip-icon': { ml: 0.5 } }}
               />
             )}

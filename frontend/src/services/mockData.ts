@@ -1,5 +1,5 @@
 import { ServiceHealth } from '@/types';
-import { CloudWatchMetric, LangSmithTrace, MetricSummary, RerankerStats } from '@/types/observability';
+import { CloudWatchMetric, LangSmithTrace, MetricSummary, RerankerStats, CostBreakdown } from '@/types/observability';
 
 // Helper to generate random values within a range
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
@@ -224,12 +224,6 @@ export function getMockMetricSummaries(): MetricSummary[] {
 }
 
 // Cost breakdown (mocked)
-export interface CostBreakdown {
-  service: string;
-  cost: number;
-  percentage: number;
-}
-
 export function getMockCostBreakdown(): CostBreakdown[] {
   const bedrock = randomInRange(25, 35);
   const appRunner = randomInRange(20, 30);

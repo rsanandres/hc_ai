@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { PipelineStep, Message } from '@/types';
 
 // Default pipeline steps that match the RAG workflow

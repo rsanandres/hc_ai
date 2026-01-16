@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message, AgentQueryResponse } from '@/types';
 import { queryAgent } from '@/services/agentApi';
@@ -13,7 +13,7 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string>('');
-  const messageCountRef = useRef(0);
+  const [messageCount, setMessageCount] = useState(0);
 
   // Initialize session from localStorage
   useEffect(() => {
@@ -35,7 +35,7 @@ export function useChat() {
           ...m,
           timestamp: new Date(m.timestamp),
         })));
-        messageCountRef.current = parsed.filter((m: Message) => m.role === 'user').length;
+        setMessageCount(parsed.filter((m: Message) => m.role === 'user').length);
       } catch {
         // Invalid stored messages, start fresh
       }
@@ -72,7 +72,7 @@ export function useChat() {
 
     setMessages(prev => [...prev, userMessage, loadingMessage]);
     setIsLoading(true);
-    messageCountRef.current += 1;
+    setMessageCount(prev => prev + 1);
 
     try {
       const response: AgentQueryResponse = await queryAgent({
@@ -111,7 +111,7 @@ export function useChat() {
 
   const clearChat = useCallback(() => {
     setMessages([]);
-    messageCountRef.current = 0;
+    setMessageCount(0);
     localStorage.removeItem(MESSAGES_STORAGE_KEY);
     // Generate new session
     const newSessionId = uuidv4();
@@ -129,7 +129,7 @@ export function useChat() {
     isLoading,
     error,
     sessionId,
-    messageCount: messageCountRef.current,
+    messageCount,
     sendMessage,
     clearChat,
     getLastResponse,

@@ -1,7 +1,7 @@
 'use client';
 
+import { memo } from 'react';
 import { Box, Typography, Tooltip, alpha } from '@mui/material';
-import { motion } from 'framer-motion';
 import { ServiceHealth } from '@/types';
 
 const STATUS_COLORS = {
@@ -14,7 +14,7 @@ interface HealthIndicatorProps {
   service: ServiceHealth;
 }
 
-export function HealthIndicator({ service }: HealthIndicatorProps) {
+export const HealthIndicator = memo(function HealthIndicator({ service }: HealthIndicatorProps) {
   const color = STATUS_COLORS[service.status];
 
   return (
@@ -52,20 +52,21 @@ export function HealthIndicator({ service }: HealthIndicatorProps) {
           transition: 'background-color 0.2s ease',
         }}
       >
-        <motion.div
-          animate={service.status === 'healthy' ? {} : { scale: [1, 1.2, 1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-        >
-          <Box
-            sx={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              bgcolor: color,
-              boxShadow: `0 0 8px ${alpha(color, 0.5)}`,
-            }}
-          />
-        </motion.div>
+        <Box
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            bgcolor: color,
+            boxShadow: `0 0 8px ${alpha(color, 0.5)}`,
+            // CSS animation instead of framer-motion for better performance
+            animation: service.status !== 'healthy' ? 'pulse 2s ease-in-out infinite' : 'none',
+            '@keyframes pulse': {
+              '0%, 100%': { transform: 'scale(1)' },
+              '50%': { transform: 'scale(1.2)' },
+            },
+          }}
+        />
         <Typography
           variant="caption"
           sx={{
@@ -82,4 +83,4 @@ export function HealthIndicator({ service }: HealthIndicatorProps) {
       </Box>
     </Tooltip>
   );
-}
+});

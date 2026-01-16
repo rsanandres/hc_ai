@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, IconButton, Tooltip, alpha } from '@mui/material';
+import { Box, Typography, IconButton, Tooltip } from '@mui/material';
 import { Trash2, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Message } from '@/types';

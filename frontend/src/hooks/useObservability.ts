@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ServiceHealth } from '@/types';
-import { CloudWatchMetric, LangSmithTrace, MetricSummary, RerankerStats, CostBreakdown } from '@/types/observability';
 import {
   getMockCloudWatchMetrics,
   getMockLangSmithTraces,
@@ -12,34 +10,40 @@ import {
   getMockCostBreakdown,
 } from '@/services/mockData';
 
-const REFRESH_INTERVAL = 5000; // 5 seconds
+const REFRESH_INTERVAL = 30000; // 30 seconds (mock data doesn't need frequent updates)
+
+// Initial data fetch (synchronous for initial render)
+function getInitialData() {
+  return {
+    cloudWatchMetrics: getMockCloudWatchMetrics(),
+    langSmithTraces: getMockLangSmithTraces(10),
+    rerankerStats: getMockRerankerStats(),
+    serviceHealth: getMockServiceHealth(),
+    metricSummaries: getMockMetricSummaries(),
+    costBreakdown: getMockCostBreakdown(),
+  };
+}
 
 export function useObservability() {
-  const [cloudWatchMetrics, setCloudWatchMetrics] = useState<CloudWatchMetric[]>([]);
-  const [langSmithTraces, setLangSmithTraces] = useState<LangSmithTrace[]>([]);
-  const [rerankerStats, setRerankerStats] = useState<RerankerStats | null>(null);
-  const [serviceHealth, setServiceHealth] = useState<ServiceHealth[]>([]);
-  const [metricSummaries, setMetricSummaries] = useState<MetricSummary[]>([]);
-  const [costBreakdown, setCostBreakdown] = useState<CostBreakdown[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize with data to avoid calling setState in effect
+  const [data, setData] = useState(getInitialData);
+  const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const refreshData = useCallback(() => {
+    setIsLoading(true);
     // Using mock data - replace with real API calls later
-    setCloudWatchMetrics(getMockCloudWatchMetrics());
-    setLangSmithTraces(getMockLangSmithTraces(10));
-    setRerankerStats(getMockRerankerStats());
-    setServiceHealth(getMockServiceHealth());
-    setMetricSummaries(getMockMetricSummaries());
-    setCostBreakdown(getMockCostBreakdown());
+    setData({
+      cloudWatchMetrics: getMockCloudWatchMetrics(),
+      langSmithTraces: getMockLangSmithTraces(10),
+      rerankerStats: getMockRerankerStats(),
+      serviceHealth: getMockServiceHealth(),
+      metricSummaries: getMockMetricSummaries(),
+      costBreakdown: getMockCostBreakdown(),
+    });
     setLastUpdated(new Date());
     setIsLoading(false);
   }, []);
-
-  // Initial load
-  useEffect(() => {
-    refreshData();
-  }, [refreshData]);
 
   // Auto-refresh
   useEffect(() => {
@@ -49,35 +53,35 @@ export function useObservability() {
 
   // Get metrics by namespace
   const getMetricsByNamespace = useCallback((namespace: string) => {
-    return cloudWatchMetrics.filter(m => m.namespace === namespace);
-  }, [cloudWatchMetrics]);
+    return data.cloudWatchMetrics.filter(m => m.namespace === namespace);
+  }, [data.cloudWatchMetrics]);
 
   // Get overall health status
   const getOverallHealth = useCallback((): 'healthy' | 'degraded' | 'unhealthy' => {
-    if (serviceHealth.some(s => s.status === 'unhealthy')) return 'unhealthy';
-    if (serviceHealth.some(s => s.status === 'degraded')) return 'degraded';
+    if (data.serviceHealth.some(s => s.status === 'unhealthy')) return 'unhealthy';
+    if (data.serviceHealth.some(s => s.status === 'degraded')) return 'degraded';
     return 'healthy';
-  }, [serviceHealth]);
+  }, [data.serviceHealth]);
 
   // Calculate cache hit rate
   const getCacheHitRate = useCallback((): number => {
-    if (!rerankerStats) return 0;
-    const total = rerankerStats.cache_hits + rerankerStats.cache_misses;
-    return total > 0 ? (rerankerStats.cache_hits / total) * 100 : 0;
-  }, [rerankerStats]);
+    if (!data.rerankerStats) return 0;
+    const total = data.rerankerStats.cache_hits + data.rerankerStats.cache_misses;
+    return total > 0 ? (data.rerankerStats.cache_hits / total) * 100 : 0;
+  }, [data.rerankerStats]);
 
   // Get total estimated cost
   const getTotalCost = useCallback((): number => {
-    return costBreakdown.reduce((sum, item) => sum + item.cost, 0);
-  }, [costBreakdown]);
+    return data.costBreakdown.reduce((sum, item) => sum + item.cost, 0);
+  }, [data.costBreakdown]);
 
   return {
-    cloudWatchMetrics,
-    langSmithTraces,
-    rerankerStats,
-    serviceHealth,
-    metricSummaries,
-    costBreakdown,
+    cloudWatchMetrics: data.cloudWatchMetrics,
+    langSmithTraces: data.langSmithTraces,
+    rerankerStats: data.rerankerStats,
+    serviceHealth: data.serviceHealth,
+    metricSummaries: data.metricSummaries,
+    costBreakdown: data.costBreakdown,
     isLoading,
     lastUpdated,
     refreshData,

@@ -44,6 +44,13 @@ export interface MetricSummary {
   sparklineData?: number[];
 }
 
+// Cost breakdown for pie chart
+export interface CostBreakdown {
+  service: string;
+  cost: number;
+  percentage: number;
+}
+
 // Service abstraction interface for future migration
 export interface ObservabilityService {
   getCloudWatchMetrics(namespace?: string): Promise<CloudWatchMetric[]>;
