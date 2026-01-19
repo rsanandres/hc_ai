@@ -4,12 +4,20 @@ Helper functions for FHIR data processing including chunking, embeddings, and me
 """
 
 import os
+import sys
 import importlib.util
 import json
 import logging
 import requests
 import nltk
 import numpy as np
+from pathlib import Path
+
+# Load environment variables from root and subfolders
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

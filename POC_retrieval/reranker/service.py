@@ -32,7 +32,10 @@ from session.store_dynamodb import SessionStore
 
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-load_dotenv(os.path.join(ROOT_DIR, ".env"))
+import sys
+sys.path.insert(0, ROOT_DIR)
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 RERANKER_DEVICE = os.getenv("RERANKER_DEVICE", "auto")

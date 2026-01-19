@@ -67,6 +67,19 @@ def _extract_tool_calls(messages: List[Any]) -> List[str]:
     return [call for call in calls if call]
 
 
+def _extract_response_text(messages: List[Any]) -> str:
+    for message in reversed(messages):
+        if isinstance(message, AIMessage) and getattr(message, "content", ""):
+            return str(message.content)
+    for message in reversed(messages):
+        if getattr(message, "content", ""):
+            return str(message.content)
+    if messages:
+        last = messages[-1]
+        return getattr(last, "content", "") if hasattr(last, "content") else str(last)
+    return ""
+
+
 def _get_researcher_agent() -> Any:
     global _RESEARCHER_AGENT
     if _RESEARCHER_AGENT is None:
@@ -114,7 +127,7 @@ def _get_validator_agent() -> Any:
     return _VALIDATOR_AGENT
 
 
-def _researcher_node(state: AgentState) -> AgentState:
+async def _researcher_node(state: AgentState) -> AgentState:
     max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
     system_prompt = get_researcher_prompt(state.get("patient_id"))
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=state["query"])]
@@ -122,12 +135,9 @@ def _researcher_node(state: AgentState) -> AgentState:
         messages.append(SystemMessage(content=f"Validator feedback:\n{state['validator_output']}"))
 
     agent = _get_researcher_agent()
-    result = agent.invoke({"messages": messages}, config={"recursion_limit": max_iterations})
+    result = await agent.ainvoke({"messages": messages}, config={"recursion_limit": max_iterations})
     output_messages = result.get("messages", [])
-    response_text = ""
-    if output_messages:
-        last = output_messages[-1]
-        response_text = getattr(last, "content", "") if hasattr(last, "content") else str(last)
+    response_text = _extract_response_text(output_messages)
 
     tools_called = (state.get("tools_called") or []) + _extract_tool_calls(output_messages)
     return {
@@ -139,21 +149,25 @@ def _researcher_node(state: AgentState) -> AgentState:
     }
 
 
-def _validator_node(state: AgentState) -> AgentState:
+async def _validator_node(state: AgentState) -> AgentState:
     max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
     system_prompt = get_validator_prompt()
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Researcher response:\n{state.get('researcher_output', '')}"),
+        HumanMessage(
+            content=(
+                "Validate the response below. If the researcher response is empty, "
+                "evaluate safety based on the user query alone.\n\n"
+                f"User query:\n{state.get('query', '')}\n\n"
+                f"Researcher response:\n{state.get('researcher_output', '')}"
+            )
+        ),
     ]
 
     agent = _get_validator_agent()
-    result = agent.invoke({"messages": messages}, config={"recursion_limit": max_iterations})
+    result = await agent.ainvoke({"messages": messages}, config={"recursion_limit": max_iterations})
     output_messages = result.get("messages", [])
-    response_text = ""
-    if output_messages:
-        last = output_messages[-1]
-        response_text = getattr(last, "content", "") if hasattr(last, "content") else str(last)
+    response_text = _extract_response_text(output_messages)
 
     tools_called = (state.get("tools_called") or []) + _extract_tool_calls(output_messages)
     validation_result = "NEEDS_REVISION"

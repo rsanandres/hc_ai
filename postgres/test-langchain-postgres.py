@@ -1,6 +1,7 @@
 import os
 import uuid
 import asyncio
+from pathlib import Path
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -13,9 +14,12 @@ from langchain_ollama import OllamaEmbeddings
 ## Test with Cohere Embeddings (NVM)
 # from langchain_cohere import CohereEmbeddings
 
-# Load environment variables from .env file
-# load_dotenv() automatically searches for .env in current and parent directories
-load_dotenv()
+# Load environment variables from repo root .env
+ROOT_DIR = Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 POSTGRES_USER = os.environ.get("DB_USER")  # @param {type: "string"}
 POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")   # @param {type: "string"}

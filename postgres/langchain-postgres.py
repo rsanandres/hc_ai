@@ -36,7 +36,10 @@ from postgres.queue_storage import (
 
 # Search for .env file (repo root)
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-load_dotenv(dotenv_path=os.path.join(ROOT_DIR, ".env"))
+import sys
+sys.path.insert(0, ROOT_DIR)
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 POSTGRES_USER = os.environ.get("DB_USER")
 POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")

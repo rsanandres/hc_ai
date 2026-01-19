@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 import asyncio
+from pathlib import Path
 from datetime import datetime
 from typing import List
 
@@ -16,8 +17,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from POC_embeddings.helper import get_chunk_embedding
 
 
-# Search for .env file
-load_dotenv()
+# Load .env from repo root
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 POSTGRES_USER = os.environ.get("DB_USER")  # @param {type: "string"}
 POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")   # @param {type: "string"}

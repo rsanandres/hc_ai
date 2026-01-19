@@ -5,11 +5,15 @@ Quick script to check if embeddings are actually in the database.
 import os
 import sys
 import asyncio
+from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 from dotenv import load_dotenv
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 POSTGRES_USER = os.environ.get("DB_USER")
 POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")

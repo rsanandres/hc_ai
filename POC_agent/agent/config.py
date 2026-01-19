@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from langchain_aws import ChatBedrock
+import sys
+
+# Add utils to path for env_loader
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+
+load_env_recursive(ROOT_DIR)
+
 from langchain_ollama import ChatOllama
 
 

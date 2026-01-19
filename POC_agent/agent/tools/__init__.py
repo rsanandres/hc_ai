@@ -16,7 +16,10 @@ _pii_masker = create_pii_masker()
 
 
 def _reranker_url() -> str:
-    return os.getenv("RERANKER_SERVICE_URL", "http://localhost:8001/rerank")
+    url = os.getenv("RERANKER_SERVICE_URL", "http://localhost:8001/rerank")
+    if url.endswith("/rerank") or url.endswith("/rerank/with-context"):
+        return url
+    return f"{url.rstrip('/')}/rerank"
 
 
 def _mask_content(text: str) -> str:

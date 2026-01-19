@@ -32,7 +32,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 # Load .env from repo root (one level up from this postgres folder)
 ROOT_DIR = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT_DIR / ".env")
+import sys
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")

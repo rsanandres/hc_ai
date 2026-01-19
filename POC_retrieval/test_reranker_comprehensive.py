@@ -5,8 +5,17 @@ from __future__ import annotations
 import os
 import time
 import unittest
+from pathlib import Path
+
+from dotenv import load_dotenv
+import sys
 
 from langchain_core.documents import Document
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 from POC_retrieval.reranker.cache import InMemoryCache, build_cache_key
 from POC_retrieval.reranker.cross_encoder import Reranker

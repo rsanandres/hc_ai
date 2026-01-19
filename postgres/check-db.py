@@ -4,11 +4,17 @@ Diagnostic script to check if the PostgreSQL vector store table exists and has d
 """
 import os
 import asyncio
+from pathlib import Path
+
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+import sys
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 POSTGRES_USER = os.environ.get("DB_USER")
 POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")

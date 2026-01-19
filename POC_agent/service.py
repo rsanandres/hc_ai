@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
 from POC_agent.agent.graph import get_agent
@@ -14,6 +16,14 @@ from POC_agent.mcp.langsmith_config import configure_langsmith_tracing
 from POC_agent.pii_masker.factory import create_pii_masker
 from POC_retrieval.session.store_dynamodb import build_store_from_env
 
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+
+load_env_recursive(ROOT_DIR)
 
 app = FastAPI()
 _pii_masker = create_pii_masker()

@@ -7,10 +7,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 import pytest_asyncio
-
+import sys
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(ROOT_DIR / ".env")
+sys.path.insert(0, str(ROOT_DIR))
+from utils.env_loader import load_env_recursive
+load_env_recursive(ROOT_DIR)
 
 
 @pytest_asyncio.fixture(scope="session")
