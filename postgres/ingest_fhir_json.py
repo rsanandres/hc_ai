@@ -352,6 +352,89 @@ async def get_raw_file(patient_id: str, filename: str) -> Optional[Dict[str, Any
         }
 
 
+async def get_raw_files_by_patients(patient_ids: List[str], limit_per_patient: int = 50) -> List[Dict[str, Any]]:
+    """Fetch raw bundles for multiple patients, newest versions first."""
+    if not patient_ids:
+        return []
+    engine = get_engine()
+    await ensure_tables(engine)
+    async with engine.begin() as conn:
+        res = await conn.execute(
+            text(
+                f"""
+                SELECT patient_id, source_filename, file_path, file_hash, version, ingested_at, bundle_json
+                FROM "{SCHEMA_NAME}"."{RAW_TABLE}"
+                WHERE patient_id = ANY(:patient_ids)
+                ORDER BY patient_id, version DESC
+                """
+            ),
+            {"patient_ids": patient_ids},
+        )
+        rows = res.fetchall()
+        results = [
+            {
+                "patient_id": r[0],
+                "source_filename": r[1],
+                "file_path": r[2],
+                "file_hash": r[3],
+                "version": r[4],
+                "ingested_at": r[5],
+                "bundle_json": r[6],
+            }
+            for r in rows
+        ]
+    if limit_per_patient is None:
+        return results
+    trimmed: List[Dict[str, Any]] = []
+    counts: Dict[str, int] = {}
+    for item in results:
+        pid = item["patient_id"]
+        counts[pid] = counts.get(pid, 0) + 1
+        if counts[pid] <= limit_per_patient:
+            trimmed.append(item)
+    return trimmed
+
+
+async def get_latest_raw_files_by_patient_ids(patient_ids: List[str]) -> List[Dict[str, Any]]:
+    """Fetch latest raw bundle per patient_id."""
+    if not patient_ids:
+        return []
+    engine = get_engine()
+    await ensure_tables(engine)
+    async with engine.begin() as conn:
+        res = await conn.execute(
+            text(
+                f"""
+                SELECT DISTINCT ON (patient_id)
+                    patient_id,
+                    source_filename,
+                    file_path,
+                    file_hash,
+                    version,
+                    ingested_at,
+                    bundle_json
+                FROM "{SCHEMA_NAME}"."{RAW_TABLE}"
+                WHERE patient_id = ANY(:patient_ids)
+                ORDER BY patient_id, version DESC
+                """
+            ),
+            {"patient_ids": patient_ids},
+        )
+        rows = res.fetchall()
+        return [
+            {
+                "patient_id": r[0],
+                "source_filename": r[1],
+                "file_path": r[2],
+                "file_hash": r[3],
+                "version": r[4],
+                "ingested_at": r[5],
+                "bundle_json": r[6],
+            }
+            for r in rows
+        ]
+
+
 # ------------------------------- CLI ------------------------------- #
 
 def parse_args():

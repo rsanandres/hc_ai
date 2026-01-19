@@ -14,6 +14,10 @@ class RerankRequest(BaseModel):
     filter_metadata: Optional[Dict[str, Any]] = None
 
 
+class RerankWithContextRequest(RerankRequest):
+    include_full_json: bool = False
+
+
 class BatchRerankItem(BaseModel):
     query: str = Field(min_length=1)
     k_retrieve: int = Field(default=50, ge=1)
@@ -34,6 +38,18 @@ class DocumentResponse(BaseModel):
 class RerankResponse(BaseModel):
     query: str
     results: List[DocumentResponse]
+
+
+class FullDocumentResponse(BaseModel):
+    patient_id: str
+    source_filename: str
+    bundle_json: Dict[str, Any]
+
+
+class RerankWithContextResponse(BaseModel):
+    query: str
+    chunks: List[DocumentResponse]
+    full_documents: List[FullDocumentResponse] = Field(default_factory=list)
 
 
 class BatchRerankResponse(BaseModel):

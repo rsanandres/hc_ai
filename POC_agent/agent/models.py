@@ -24,6 +24,9 @@ class AgentDocument(BaseModel):
 class AgentQueryResponse(BaseModel):
     query: str
     response: str
+    researcher_output: Optional[str] = None
+    validator_output: Optional[str] = None
+    validation_result: Optional[str] = None
     sources: List[AgentDocument] = Field(default_factory=list)
     tool_calls: List[str] = Field(default_factory=list)
     session_id: str

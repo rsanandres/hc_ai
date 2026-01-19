@@ -20,6 +20,9 @@ from .models import (
     DocumentResponse,
     RerankRequest,
     RerankResponse,
+    RerankWithContextRequest,
+    RerankWithContextResponse,
+    FullDocumentResponse,
     SessionSummaryUpdate,
     SessionTurnRequest,
     SessionTurnResponse,
@@ -97,6 +100,17 @@ def _load_postgres_module():
     return module
 
 
+def _load_ingest_module():
+    postgres_dir = os.path.join(ROOT_DIR, "postgres")
+    ingest_file = os.path.join(postgres_dir, "ingest_fhir_json.py")
+    if not os.path.exists(ingest_file):
+        return None
+    spec = importlib.util.spec_from_file_location("ingest_fhir_json", ingest_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _document_id(doc: Document, fallback_index: int) -> str:
     doc_id = getattr(doc, "id", None)
     if doc_id:
@@ -165,9 +179,46 @@ async def _rerank_single(request: RerankRequest) -> RerankResponse:
     return RerankResponse(query=query, results=results)
 
 
+async def _fetch_full_documents(patient_ids: List[str]) -> List[FullDocumentResponse]:
+    if not patient_ids:
+        return []
+    module = _load_ingest_module()
+    if not module:
+        return []
+    get_files = getattr(module, "get_latest_raw_files_by_patient_ids", None)
+    if get_files is None:
+        return []
+    raw_files = await get_files(patient_ids)
+    documents: List[FullDocumentResponse] = []
+    for item in raw_files:
+        documents.append(
+            FullDocumentResponse(
+                patient_id=item.get("patient_id", ""),
+                source_filename=item.get("source_filename", ""),
+                bundle_json=item.get("bundle_json", {}),
+            )
+        )
+    return documents
+
+
 @app.post("/rerank", response_model=RerankResponse)
 async def rerank(request: RerankRequest) -> RerankResponse:
     return await _rerank_single(request)
+
+
+@app.post("/rerank/with-context", response_model=RerankWithContextResponse)
+async def rerank_with_context(request: RerankWithContextRequest) -> RerankWithContextResponse:
+    reranked = await _rerank_single(request)
+    patient_ids = []
+    for item in reranked.results:
+        metadata = item.metadata or {}
+        patient_id = metadata.get("patientId")
+        if patient_id:
+            patient_ids.append(str(patient_id))
+    full_documents = []
+    if request.include_full_json:
+        full_documents = await _fetch_full_documents(sorted(set(patient_ids)))
+    return RerankWithContextResponse(query=reranked.query, chunks=reranked.results, full_documents=full_documents)
 
 
 @app.post("/rerank/batch", response_model=BatchRerankResponse)
