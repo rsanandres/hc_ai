@@ -31,7 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 # Load .env from repo root (one level up from scripts/ folder)
-ROOT_DIR = Path(__file__).resolve().parents[1]
+ROOT_DIR = Path(__file__).resolve().parents[1]  # Go up 1 level from scripts/ to project root
 import sys
 sys.path.insert(0, str(ROOT_DIR))
 from utils.env_loader import load_env_recursive

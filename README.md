@@ -8,7 +8,7 @@ The system consists of three main components:
 
 1. **Go Parser** (`POC_embeddings/main.go`) - Efficiently parses FHIR Bundle JSON files and extracts resources
 2. **Python API** (`POC_embeddings/main.py`) - FastAPI service that accepts FHIR resources and processes them asynchronously
-3. **PostgreSQL Vector Store** (`postgres/langchain-postgres.py`) - Stores chunks with 1024-dimensional embeddings using pgvector
+3. **PostgreSQL Vector Store** (`api/database/postgres.py`) - Stores chunks with 1024-dimensional embeddings using pgvector
 
 ### Data Flow
 
@@ -72,11 +72,13 @@ CHUNK_RETRY_MAX_DELAY=60.0
 ### 4. Start PostgreSQL with pgvector
 
 ```bash
-cd postgres
+cd db/postgres
 docker-compose up -d
 ```
 
 This starts a PostgreSQL 18 container with pgvector extension on port 5432.
+
+See `db/postgres/README.md` for more details.
 
 ### 5. Pull Ollama Embedding Model
 
@@ -248,7 +250,7 @@ Falls back to **RecursiveCharacterTextSplitter** when JSON is not available.
 - **Queue-based processing** for resilience
 - **Automatic retries** with exponential backoff
 - **Dead Letter Queue (DLQ)** for failed chunks
-- **Persistent queue** stored in SQLite (`postgres/queue.db`)
+- **Persistent queue** stored in SQLite (managed by `api/database/queue_storage.py`)
 
 ## 📊 Monitoring & Debugging
 
@@ -256,7 +258,7 @@ Falls back to **RecursiveCharacterTextSplitter** when JSON is not available.
 
 ```bash
 # Using the check script
-python3 postgres/check-db.py
+python3 scripts/check_db.py
 
 # Or directly in PostgreSQL
 docker exec -it postgres-db psql -U postgres
@@ -271,7 +273,7 @@ SELECT COUNT(*) FROM hc_ai_table;
 docker exec -it postgres-db psql -U postgres -d your_database_name
 ```
 
-See `postgres/check_embeddings_simple.sql` for verification queries.
+See `db/sql/check_embeddings_simple.sql` for verification queries.
 
 ### Check Queue Status
 
@@ -295,12 +297,28 @@ hc_ai/
 │   ├── helper.py            # Chunking, embeddings, processing
 │   ├── requirements.txt     # Python dependencies
 │   └── test_*.py            # Test scripts
-├── postgres/
-│   ├── docker-compose.yml   # PostgreSQL with pgvector
-│   ├── langchain-postgres.py # Vector store implementation
-│   ├── queue_storage.py     # Queue persistence
-│   ├── check-db.py          # Database diagnostic script
-│   └── check_embeddings_simple.sql # Embedding verification queries
+├── db/
+│   ├── postgres/
+│   │   ├── docker-compose.yml   # PostgreSQL with pgvector
+│   │   └── README.md            # PostgreSQL setup instructions
+│   ├── dynamodb/
+│   │   ├── docker-compose.yml   # DynamoDB Local setup
+│   │   └── README.md            # DynamoDB setup instructions
+│   └── sql/
+│       ├── verify_embeddings.sql # Embedding verification queries
+│       ├── check_embeddings_simple.sql
+│       └── test.sql
+├── scripts/
+│   ├── check_db.py          # Database diagnostic script
+│   ├── check_embeddings.py  # Embedding verification script
+│   ├── ingest_fhir_json.py  # FHIR JSON ingestion script
+│   ├── test_postgres.py     # PostgreSQL test script
+│   ├── chat_cli.py          # Chat CLI
+│   └── agent_debug_cli.py   # Agent debug CLI
+├── api/
+│   └── database/
+│       ├── postgres.py      # Vector store implementation
+│       └── queue_storage.py # Queue persistence
 ├── data/
 │   └── fhir/                # FHIR JSON files (place your files here)
 ├── README.md                # This file

@@ -132,6 +132,7 @@ async def query_agent_stream(payload: AgentQueryRequest):
     """Stream agent execution progress using Server-Sent Events."""
     
     async def event_generator():
+        result = None
         try:
             yield f"data: {json.dumps({'type': 'start', 'message': 'Starting agent...'})}\n\n"
             
@@ -152,31 +153,32 @@ async def query_agent_stream(payload: AgentQueryRequest):
             
             yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Researcher agent thinking...'})}\n\n"
             
-            # Stream events from LangGraph
-            async for event in agent.astream_events(state, config={"recursion_limit": max_iterations}, version="v1"):
-                event_type = event.get("event")
+            # Use astream to get state updates and avoid double invocation
+            # astream() yields (node_name, state) tuples in LangGraph
+            last_state = None
+            async for chunk in agent.astream(state, config={"recursion_limit": max_iterations}):
+                # Handle both tuple format (node_name, state) and direct state format
+                if isinstance(chunk, tuple) and len(chunk) == 2:
+                    node_name, state_update = chunk
+                else:
+                    state_update = chunk
                 
-                # Track node transitions
-                if event_type == "on_chain_start":
-                    name = event.get("name", "")
-                    if "researcher" in name.lower():
-                        yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Researcher agent working...'})}\n\n"
-                    elif "validator" in name.lower():
-                        yield f"data: {json.dumps({'type': 'status', 'message': '✓ Validator reviewing...'})}\n\n"
+                # Track the latest state update
+                last_state = state_update
                 
-                # Track tool calls
-                elif event_type == "on_tool_start":
-                    tool_name = event.get("name", "unknown")
-                    yield f"data: {json.dumps({'type': 'tool', 'tool': tool_name, 'message': f'🔧 Tool: {tool_name}'})}\n\n"
-                
-                # Track LLM responses
-                elif event_type == "on_chat_model_stream":
-                    chunk = event.get("data", {}).get("chunk", {})
-                    if hasattr(chunk, "content") and chunk.content:
-                        yield f"data: {json.dumps({'type': 'chunk', 'content': chunk.content})}\n\n"
+                # Stream status updates based on state changes
+                if state_update.get("researcher_output") and not state_update.get("validator_output"):
+                    yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Researcher agent working...'})}\n\n"
+                elif state_update.get("validator_output"):
+                    yield f"data: {json.dumps({'type': 'status', 'message': '✓ Validator reviewing...'})}\n\n"
             
-            # Get final result
-            result = await agent.ainvoke(state, config={"recursion_limit": max_iterations})
+            # Get the final result from the last state update
+            # If we didn't get a final state, fall back to ainvoke (shouldn't happen, but safety check)
+            if last_state:
+                result = last_state
+            else:
+                # Fallback: if astream didn't yield anything, use ainvoke
+                result = await agent.ainvoke(state, config={"recursion_limit": max_iterations})
             
             response_text = result.get("final_response") or result.get("researcher_output", "")
             response_text = _guard_output(response_text)

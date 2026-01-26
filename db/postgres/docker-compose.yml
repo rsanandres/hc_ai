@@ -1,0 +1,13 @@
+services:
+  db:
+    image: pgvector/pgvector:0.8.1-pg18-trixie
+    container_name: postgres-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD} 
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+    volumes:
+      - ../../postgres_data:/var/lib/postgresql # This saves your data even if you delete the container
+    command: postgres -c 'max_connections=500'
