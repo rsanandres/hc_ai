@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 from datasets import Dataset
 from langchain_openai import ChatOpenAI
 from ragas import evaluate
-from ragas.metrics import answer_relevancy
+from ragas.metrics.collections import answer_relevancy
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:

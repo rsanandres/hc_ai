@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 import os
 
-from api.session.store_dynamodb import SessionStore, build_store_from_env
+from api.session.store_dynamodb import SessionStore, get_session_store
 from api.session.models import (
     SessionSummaryUpdate,
     SessionTurnRequest,
@@ -28,7 +28,7 @@ SESSION_RECENT_LIMIT = int(os.getenv("SESSION_RECENT_LIMIT", "10"))
 
 
 def _get_session_store() -> SessionStore:
-    return build_store_from_env()
+    return get_session_store()
 
 
 @router.post("/turn", response_model=SessionTurnResponse)

@@ -4,19 +4,28 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import uuid
 from typing import Any, Dict, List, Optional
 
 import requests
 from langchain_core.tools import tool
 
 from api.agent.pii_masker.factory import create_pii_masker
-from api.session.store_dynamodb import build_store_from_env
+from api.session.store_dynamodb import get_session_store
+from api.agent.tools.schemas import (
+    CalculationResponse,
+    ChunkResult,
+    MedicationCheckResponse,
+    RetrievalResponse,
+    SessionContextResponse,
+    TimelineResponse,
+)
 
 _pii_masker = create_pii_masker()
 
 
 def _reranker_url() -> str:
-    url = os.getenv("RERANKER_SERVICE_URL", "http://localhost:8001/rerank")
+    url = os.getenv("RERANKER_SERVICE_URL", "http://localhost:8000/retrieval")
     if url.endswith("/rerank") or url.endswith("/rerank/with-context"):
         return url
     return f"{url.rstrip('/')}/rerank"
@@ -63,14 +72,66 @@ def search_clinical_notes(
     k_return: int = 10,
     patient_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Search clinical notes for relevant context."""
-    filter_metadata = {"patient_id": patient_id} if patient_id else None
-    return _call_reranker(query, k_retrieve, k_return, filter_metadata=filter_metadata)
+    """
+    Search clinical notes for relevant context.
+    
+    Args:
+        query: Search query string
+        k_retrieve: Number of candidates to retrieve before reranking
+        k_return: Number of results to return after reranking
+        patient_id: Patient UUID in format "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8" (optional)
+    """
+    if patient_id:
+        # Validate UUID format
+        try:
+            uuid.UUID(patient_id)
+        except (ValueError, TypeError):
+            return RetrievalResponse(
+                query=query,
+                chunks=[],
+                count=0,
+                success=False,
+                error=f"Invalid patient_id format. Must be a UUID like 'f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8', got: {patient_id}",
+            ).model_dump()
+        filter_metadata = {"patient_id": patient_id}
+    else:
+        filter_metadata = None
+    results = _call_reranker(query, k_retrieve, k_return, filter_metadata=filter_metadata)
+    return RetrievalResponse(
+        query=query,
+        chunks=[
+            ChunkResult(
+                id=str(item.get("id", "")),
+                content=str(item.get("content", "")),
+                score=float(item.get("score", 0.0)),
+                metadata=item.get("metadata", {}) or {},
+            )
+            for item in results
+        ],
+        count=len(results),
+    ).model_dump()
 
 
 @tool
 def get_patient_timeline(patient_id: str, k_return: int = 20) -> Dict[str, Any]:
-    """Return a chronological timeline for a patient based on retrieved notes."""
+    """
+    Return a chronological timeline for a patient based on retrieved notes.
+    
+    Args:
+        patient_id: Patient UUID in format "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8" (required)
+        k_return: Number of timeline events to return
+    """
+    # Validate UUID format
+    try:
+        uuid.UUID(patient_id)
+    except (ValueError, TypeError):
+        return TimelineResponse(
+            patient_id=patient_id,
+            events=[],
+            success=False,
+            error=f"Invalid patient_id format. Must be a UUID like 'f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8', got: {patient_id}",
+        ).model_dump()
+    
     results = _call_reranker(
         query=f"patient timeline {patient_id}",
         k_retrieve=max(k_return * 3, 30),
@@ -83,10 +144,18 @@ def get_patient_timeline(patient_id: str, k_return: int = 20) -> Dict[str, Any]:
         return str(metadata.get("effectiveDate") or metadata.get("lastUpdated") or "")
 
     sorted_results = sorted(results, key=_date_key)
-    return {
-        "patient_id": patient_id,
-        "events": sorted_results,
-    }
+    return TimelineResponse(
+        patient_id=patient_id,
+        events=[
+            ChunkResult(
+                id=str(item.get("id", "")),
+                content=str(item.get("content", "")),
+                score=float(item.get("score", 0.0)),
+                metadata=item.get("metadata", {}) or {},
+            )
+            for item in sorted_results
+        ],
+    ).model_dump()
 
 
 @tool
@@ -98,35 +167,49 @@ def cross_reference_meds(medication_list: List[str]) -> Dict[str, Any]:
         warnings.append("Potential interaction: warfarin with aspirin may increase bleeding risk.")
     if "metformin" in meds and "contrast dye" in meds:
         warnings.append("Potential interaction: metformin with contrast dye may increase lactic acidosis risk.")
-    return {"medications": sorted(meds), "warnings": warnings}
+    return MedicationCheckResponse(
+        medications=sorted(meds),
+        warnings=warnings,
+    ).model_dump()
 
 
 @tool
 def get_session_context(session_id: str, limit: int = 10) -> Dict[str, Any]:
     """Retrieve session summary and recent turns."""
-    store = build_store_from_env()
+    store = get_session_store()
     recent = store.get_recent(session_id, limit=limit)
     summary = store.get_summary(session_id)
-    return {"summary": summary, "recent_turns": recent}
+    return SessionContextResponse(
+        summary=summary,
+        recent_turns=recent,
+    ).model_dump()
 
 
 @tool
-def calculate(expression: str) -> str:
+def calculate(expression: str) -> Dict[str, Any]:
     """Safely evaluate simple arithmetic expressions."""
     allowed = set("0123456789+-*/(). ")
     if any(ch not in allowed for ch in expression):
-        return "Unsupported characters in expression."
+        return CalculationResponse(
+            success=False,
+            error="Unsupported characters in expression.",
+            result=None,
+        ).model_dump()
     try:
         result = eval(expression, {"__builtins__": {}}, {})
     except Exception:
-        return "Unable to evaluate expression."
-    return str(result)
+        return CalculationResponse(
+            success=False,
+            error="Unable to evaluate expression.",
+            result=None,
+        ).model_dump()
+    return CalculationResponse(result=str(result)).model_dump()
 
 
 @tool
-def get_current_date() -> str:
+def get_current_date() -> Dict[str, Any]:
     """Return current date in ISO format."""
-    return dt.datetime.utcnow().isoformat()
+    return CalculationResponse(result=dt.datetime.utcnow().isoformat()).model_dump()
 
 
 def summarize_tool_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -153,8 +236,8 @@ from .dosage_validator import validate_dosage
 from .fda_tools import get_drug_recalls, get_drug_shortages, get_faers_events, search_fda_drugs
 from .loinc_lookup import lookup_loinc
 from .research_tools import get_who_stats, search_clinical_trials, search_pubmed
-from .retrieval import search_patient_records
-from .terminology_tools import get_drug_interactions, lookup_rxnorm, search_icd10, validate_icd10_code
+from .retrieval import retrieve_patient_data, search_patient_records
+from .terminology_tools import lookup_rxnorm, search_icd10, validate_icd10_code
 
 
 __all__ = [
@@ -165,7 +248,6 @@ __all__ = [
     "calculate_gfr",
     "cross_reference_meds",
     "get_current_date",
-    "get_drug_interactions",
     "get_drug_recalls",
     "get_drug_shortages",
     "get_patient_timeline",
@@ -178,6 +260,7 @@ __all__ = [
     "search_fda_drugs",
     "search_icd10",
     "search_patient_records",
+    "retrieve_patient_data",
     "search_pubmed",
     "summarize_tool_results",
     "validate_icd10_code",

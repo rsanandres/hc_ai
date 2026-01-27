@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-PROMPTS_FILE = Path(__file__).resolve().parents[1] / "prompts.yaml"
+PROMPTS_FILE = Path(__file__).resolve().parent / "prompts.yaml"
 
 _prompts_cache: Optional[Dict[str, object]] = None
 

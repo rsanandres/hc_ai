@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import json
+import uuid
+import asyncio
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException
@@ -14,7 +16,7 @@ from api.agent.models import AgentDocument, AgentQueryRequest, AgentQueryRespons
 from api.agent.guardrails.validators import setup_guard
 from api.agent.mcp.langsmith_config import configure_langsmith_tracing
 from api.agent.pii_masker.factory import create_pii_masker
-from api.session.store_dynamodb import build_store_from_env
+from api.session.store_dynamodb import get_session_store
 
 router = APIRouter()
 
@@ -60,21 +62,38 @@ async def query_agent(payload: AgentQueryRequest) -> AgentQueryResponse:
     if not payload.query.strip():
         raise HTTPException(status_code=400, detail="Query is required.")
 
+    request_id = str(uuid.uuid4())
     try:
         masked_query, _ = _pii_masker.mask_pii(payload.query)
 
-        store = build_store_from_env()
+        store = get_session_store()
         agent = get_agent()
         max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+        agent_timeout = int(os.getenv("AGENT_TIMEOUT_SECONDS", "300"))  # Default 5 minutes
+        
         state = {
             "query": masked_query,
             "session_id": payload.session_id,
             "patient_id": payload.patient_id,
+            "request_id": request_id,  # Add for debugging and isolation
             "k_retrieve": payload.k_retrieve,
             "k_return": payload.k_return,
             "iteration_count": 0,
         }
-        result = await agent.ainvoke(state, config={"recursion_limit": max_iterations})
+        
+        # Add timeout handling for agent invocation
+        try:
+            result = await asyncio.wait_for(
+                agent.ainvoke(state, config={"recursion_limit": max_iterations}),
+                timeout=agent_timeout
+            )
+        except asyncio.TimeoutError:
+            error_msg = f"Agent request {request_id} timed out after {agent_timeout} seconds"
+            print(f"Error: {error_msg}")
+            raise HTTPException(
+                status_code=504,
+                detail=error_msg
+            )
 
         response_text = result.get("final_response") or result.get("researcher_output", "")
 
@@ -113,11 +132,14 @@ async def query_agent(payload: AgentQueryRequest) -> AgentQueryResponse:
             validator_output=result.get("validator_output"),
             iteration_count=result.get("iteration_count"),
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions (like timeout) as-is
+        raise
     except Exception as e:
-        # Log the full error for debugging
+        # Log the full error for debugging with request context
         import traceback
         error_details = traceback.format_exc()
-        print(f"Error in agent query: {type(e).__name__}: {str(e)}")
+        print(f"Error in agent query [request_id={request_id}]: {type(e).__name__}: {str(e)}")
         print(f"Traceback: {error_details}")
         
         # Return a 500 with error details instead of crashing
@@ -133,52 +155,46 @@ async def query_agent_stream(payload: AgentQueryRequest):
     
     async def event_generator():
         result = None
+        request_id = str(uuid.uuid4())
         try:
             yield f"data: {json.dumps({'type': 'start', 'message': 'Starting agent...'})}\n\n"
             
             masked_query, _ = _pii_masker.mask_pii(payload.query)
             
-            store = build_store_from_env()
+            store = get_session_store()
             agent = get_agent()
             max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+            agent_timeout = int(os.getenv("AGENT_TIMEOUT_SECONDS", "300"))  # Default 5 minutes
             
             state = {
                 "query": masked_query,
                 "session_id": payload.session_id,
                 "patient_id": payload.patient_id,
+                "request_id": request_id,  # Add for debugging and isolation
                 "k_retrieve": payload.k_retrieve,
                 "k_return": payload.k_return,
                 "iteration_count": 0,
             }
             
-            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Researcher agent thinking...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Starting agent...'})}\n\n"
             
-            # Use astream to get state updates and avoid double invocation
-            # astream() yields (node_name, state) tuples in LangGraph
-            last_state = None
-            async for chunk in agent.astream(state, config={"recursion_limit": max_iterations}):
-                # Handle both tuple format (node_name, state) and direct state format
-                if isinstance(chunk, tuple) and len(chunk) == 2:
-                    node_name, state_update = chunk
-                else:
-                    state_update = chunk
-                
-                # Track the latest state update
-                last_state = state_update
-                
-                # Stream status updates based on state changes
-                if state_update.get("researcher_output") and not state_update.get("validator_output"):
-                    yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Researcher agent working...'})}\n\n"
-                elif state_update.get("validator_output"):
-                    yield f"data: {json.dumps({'type': 'status', 'message': '✓ Validator reviewing...'})}\n\n"
+            # FIXED: Use ainvoke() ONCE to avoid double invocation (the original bug)
+            # This prevents timeouts and double execution
+            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 Processing query...'})}\n\n"
             
-            # Get the final result from the last state update
-            # If we didn't get a final state, fall back to ainvoke (shouldn't happen, but safety check)
-            if last_state:
-                result = last_state
-            else:
-                # Fallback: if astream didn't yield anything, use ainvoke
-                result = await agent.ainvoke(state, config={"recursion_limit": max_iterations})
+            # Add timeout handling for agent invocation
+            try:
+                result = await asyncio.wait_for(
+                    agent.ainvoke(state, config={"recursion_limit": max_iterations}),
+                    timeout=agent_timeout
+                )
+            except asyncio.TimeoutError:
+                error_msg = f"Agent request {request_id} timed out after {agent_timeout} seconds"
+                print(f"Error: {error_msg}")
+                yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
+                return
+            
+            yield f"data: {json.dumps({'type': 'status', 'message': '✓ Agent processing complete'})}\n\n"
             
             response_text = result.get("final_response") or result.get("researcher_output", "")
             response_text = _guard_output(response_text)
@@ -221,7 +237,8 @@ async def query_agent_stream(payload: AgentQueryRequest):
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
-            print(f"Error in streaming agent query: {type(e).__name__}: {str(e)}")
+            error_msg = f"Error in streaming agent query [request_id={request_id}]: {type(e).__name__}: {str(e)}"
+            print(error_msg)
             print(f"Traceback: {error_details}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
     

@@ -48,7 +48,6 @@ MCP_AGENT_TOOL_ALLOWLIST: Dict[str, Dict[str, List[str]]] = {
         "agentcare": [
             "get_patient_data",
             "search_conditions",
-            "get_drug_interactions",
             "search_pubmed",
             "search_clinical_trials",
         ],

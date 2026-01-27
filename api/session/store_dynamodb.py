@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import requests
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -476,8 +477,34 @@ def _clean_table_name(name: str) -> str:
     return name.strip()
 
 
+def _warn_on_bad_endpoint(endpoint: str) -> None:
+    if not endpoint:
+        return
+    if "localhost:8000" in endpoint or "127.0.0.1:8000" in endpoint:
+        try:
+            resp = requests.get("http://localhost:8000/agent/health", timeout=2)
+            if resp.status_code == 200:
+                print(
+                    "Warning: DDB_ENDPOINT points to FastAPI on port 8000. "
+                    "DynamoDB Local should run on port 8001."
+                )
+        except requests.RequestException:
+            print(
+                "Warning: DDB_ENDPOINT appears to use port 8000. "
+                "If this is DynamoDB Local, update to http://localhost:8001."
+            )
+
+
+# Global singleton session store instance
+_SESSION_STORE: Optional[SessionStore] = None
+
+
 def build_store_from_env() -> SessionStore:
-    """Factory that builds a SessionStore using environment variables."""
+    """Factory that builds a SessionStore using environment variables.
+    
+    Note: For better performance and to avoid connection pool exhaustion,
+    use get_session_store() instead, which returns a singleton instance.
+    """
     region = os.getenv("AWS_REGION", "us-east-1")
     turns_table_raw = os.getenv("DDB_TURNS_TABLE", "hcai_session_turns")
     summary_table_raw = os.getenv("DDB_SUMMARY_TABLE", "hcai_session_summary")
@@ -487,6 +514,7 @@ def build_store_from_env() -> SessionStore:
     summary_table = _clean_table_name(summary_table_raw)
     
     endpoint = os.getenv("DDB_ENDPOINT", "http://localhost:8001")  # Default to local DynamoDB
+    _warn_on_bad_endpoint(endpoint)
     ttl_days_str = os.getenv("DDB_TTL_DAYS")
     ttl_days = int(ttl_days_str) if ttl_days_str and ttl_days_str.isdigit() else None
     auto_create = os.getenv("DDB_AUTO_CREATE", "false").lower() in {"1", "true", "yes"}
@@ -508,3 +536,19 @@ def build_store_from_env() -> SessionStore:
         max_recent=max_recent,
         auto_create=auto_create,
     )
+
+
+def get_session_store() -> SessionStore:
+    """Get or create singleton session store instance.
+    
+    This function returns a singleton SessionStore instance to avoid
+    creating multiple DynamoDB connections, which can cause connection
+    pool exhaustion and timeouts under concurrent load.
+    
+    Returns:
+        SessionStore: Singleton session store instance
+    """
+    global _SESSION_STORE
+    if _SESSION_STORE is None:
+        _SESSION_STORE = build_store_from_env()
+    return _SESSION_STORE

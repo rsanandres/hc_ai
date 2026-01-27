@@ -1,51 +1,67 @@
-"""LOINC lookup tool via FHIR API."""
+"""LOINC lookup tool via Regenstrief Search API."""
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict
 
 import httpx
 from langchain_core.tools import tool
 
+from api.agent.tools.schemas import LOINCResponse
 
-LOINC_BASE_URL = "https://fhir.loinc.org"
 
-
-def _extract_parameters(payload: Dict[str, Any]) -> Dict[str, Any]:
-    params = {}
-    for item in payload.get("parameter", []):
-        name = item.get("name")
-        if not name:
-            continue
-        if "valueString" in item:
-            params[name] = item["valueString"]
-        elif "valueCode" in item:
-            params[name] = item["valueCode"]
-        elif "valueUri" in item:
-            params[name] = item["valueUri"]
-    return params
+LOINC_BASE_URL = "https://loinc.regenstrief.org"
 
 
 @tool
 async def lookup_loinc(code: str) -> Dict[str, Any]:
     """Validate LOINC code and return basic metadata."""
-    url = f"{LOINC_BASE_URL}/CodeSystem/$lookup"
-    async with httpx.AsyncClient(timeout=20) as client:
+    url = f"{LOINC_BASE_URL}/searchapi/loincs"
+    
+    # Get credentials from environment
+    username = os.getenv("LOINC_USERNAME")
+    password = os.getenv("LOINC_PASSWORD")
+    
+    # Set up basic auth if credentials are available
+    auth = None
+    if username and password:
+        auth = (username, password)
+    
+    async with httpx.AsyncClient(timeout=20, auth=auth) as client:
         try:
-            response = await client.get(url, params={"code": code})
+            response = await client.get(url, params={"query": code})
             if response.status_code == 404:
-                return {"valid": False, "code": code}
+                return LOINCResponse(
+                    success=False,
+                    error="code not found",
+                    code=code,
+                ).model_dump()
             response.raise_for_status()
         except Exception as exc:  # noqa: BLE001
-            return {"valid": False, "code": code, "error": str(exc)}
+            return LOINCResponse(
+                success=False,
+                error=str(exc),
+                code=code,
+            ).model_dump()
 
     payload = response.json()
-    data = _extract_parameters(payload)
-    return {
-        "valid": True,
-        "code": code,
-        "long_name": data.get("display", ""),
-        "component": data.get("component", ""),
-        "system": data.get("system", ""),
-        "method": data.get("method", ""),
-    }
+    # Response format may vary - handle both array and object responses
+    if isinstance(payload, list):
+        if not payload:
+            return LOINCResponse(
+                success=False,
+                error="code not found",
+                code=code,
+            ).model_dump()
+        # Use first result if multiple found
+        data = payload[0]
+    else:
+        data = payload
+    
+    return LOINCResponse(
+        code=data.get("LOINC_NUM", code),
+        name=data.get("LONG_COMMON_NAME", data.get("COMPONENT", "")),
+        component=data.get("COMPONENT", ""),
+        system=data.get("SYSTEM", ""),
+    ).model_dump()

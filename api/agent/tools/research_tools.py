@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 import httpx
 from langchain_core.tools import tool
 
+from api.agent.tools.schemas import ResearchResponse
 _NCBI_BASE_URL = os.getenv("NCBI_API_URL", "https://eutils.ncbi.nlm.nih.gov/entrez/eutils")
 _NCBI_API_KEY = os.getenv("NCBI_API_KEY")
 _CLINICAL_TRIALS_URL = os.getenv("CLINICAL_TRIALS_API_URL", "https://clinicaltrials.gov/api/v2/studies")
@@ -28,22 +29,37 @@ async def _get_json(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
 async def search_pubmed(query: str, max_results: int = 5) -> Dict[str, Any]:
     """Search PubMed articles and return summaries."""
     if not query.strip():
-        return {"error": "query is required", "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error="query is required",
+            results=[],
+            count=0,
+        ).model_dump()
     params = {"db": "pubmed", "term": query, "retmode": "json", "retmax": max_results}
     if _NCBI_API_KEY:
         params["api_key"] = _NCBI_API_KEY
     esearch = await _get_json(f"{_NCBI_BASE_URL}/esearch.fcgi", params)
     if "error" in esearch:
-        return {"error": esearch["error"], "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error=str(esearch.get("error")),
+            results=[],
+            count=0,
+        ).model_dump()
     ids = esearch.get("esearchresult", {}).get("idlist", [])
     if not ids:
-        return {"results": [], "count": 0}
+        return ResearchResponse(results=[], count=0).model_dump()
     summary_params = {"db": "pubmed", "id": ",".join(ids), "retmode": "json"}
     if _NCBI_API_KEY:
         summary_params["api_key"] = _NCBI_API_KEY
     esummary = await _get_json(f"{_NCBI_BASE_URL}/esummary.fcgi", summary_params)
     if "error" in esummary:
-        return {"error": esummary["error"], "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error=str(esummary.get("error")),
+            results=[],
+            count=0,
+        ).model_dump()
     results = []
     for uid in ids:
         item = esummary.get("result", {}).get(uid, {})
@@ -55,18 +71,28 @@ async def search_pubmed(query: str, max_results: int = 5) -> Dict[str, Any]:
                 "pubdate": item.get("pubdate", ""),
             }
         )
-    return {"results": results, "count": len(results)}
+    return ResearchResponse(results=results, count=len(results)).model_dump()
 
 
 @tool
 async def search_clinical_trials(query: str, max_results: int = 5) -> Dict[str, Any]:
     """Search ClinicalTrials.gov for studies matching a query."""
     if not query.strip():
-        return {"error": "query is required", "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error="query is required",
+            results=[],
+            count=0,
+        ).model_dump()
     params = {"query.term": query, "pageSize": max_results}
     data = await _get_json(_CLINICAL_TRIALS_URL, params)
     if "error" in data:
-        return {"error": data["error"], "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error=str(data.get("error")),
+            results=[],
+            count=0,
+        ).model_dump()
     results: List[Dict[str, Any]] = []
     for study in data.get("studies", []):
         protocol = study.get("protocolSection", {})
@@ -79,19 +105,29 @@ async def search_clinical_trials(query: str, max_results: int = 5) -> Dict[str, 
                 "overall_status": status.get("overallStatus", ""),
             }
         )
-    return {"results": results, "count": len(results)}
+    return ResearchResponse(results=results, count=len(results)).model_dump()
 
 
 @tool
 async def get_who_stats(indicator_name: str, max_results: int = 5) -> Dict[str, Any]:
     """Search WHO GHO indicators by name."""
     if not indicator_name.strip():
-        return {"error": "indicator_name is required", "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error="indicator_name is required",
+            results=[],
+            count=0,
+        ).model_dump()
     url = f"{_WHO_GHO_URL}/Indicator"
     params = {"$filter": f"contains(IndicatorName,'{indicator_name}')", "$top": max_results}
     data = await _get_json(url, params)
     if "error" in data:
-        return {"error": data["error"], "results": [], "count": 0}
+        return ResearchResponse(
+            success=False,
+            error=str(data.get("error")),
+            results=[],
+            count=0,
+        ).model_dump()
     results = []
     for item in data.get("value", []):
         results.append(
@@ -101,4 +137,4 @@ async def get_who_stats(indicator_name: str, max_results: int = 5) -> Dict[str, 
                 "source": item.get("Source", ""),
             }
         )
-    return {"results": results, "count": len(results)}
+    return ResearchResponse(results=results, count=len(results)).model_dump()

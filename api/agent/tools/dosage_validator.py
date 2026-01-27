@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 from langchain_core.tools import tool
 
+from api.agent.tools.schemas import DosageValidationResponse
+
 OPENFDA_URL = os.getenv("OPENFDA_LABEL_URL", "https://api.fda.gov/drug/label.json")
 
 
@@ -59,14 +61,27 @@ async def validate_dosage(
     Returns dict with validity, warnings, and label excerpt.
     """
     if dose_amount <= 0:
-        return {"valid": False, "warning": "dose_amount must be positive"}
+        return DosageValidationResponse(
+            success=False,
+            error="dose_amount must be positive",
+            medication=drug_name,
+            dose=f"{dose_amount}{dose_unit}",
+            is_valid=False,
+            warnings=["dose_amount must be positive"],
+            frequency=frequency,
+            patient_weight_kg=patient_weight_kg,
+        ).model_dump()
 
     if patient_gfr is not None and patient_gfr < 30:
-        return {
-            "valid": False,
-            "warning": "Renal impairment detected (GFR < 30). Dose adjustment required.",
-            "frequency": frequency,
-        }
+        return DosageValidationResponse(
+            medication=drug_name,
+            dose=f"{dose_amount}{dose_unit}",
+            is_valid=False,
+            warnings=["Renal impairment detected (GFR < 30). Dose adjustment required."],
+            reference_range=frequency,
+            frequency=frequency,
+            patient_weight_kg=patient_weight_kg,
+        ).model_dump()
 
     query = f'(openfda.generic_name:"{drug_name}" OR openfda.brand_name:"{drug_name}")'
     params = {"search": query, "limit": 1}
@@ -76,19 +91,31 @@ async def validate_dosage(
             response.raise_for_status()
             payload = response.json()
         except Exception as exc:  # noqa: BLE001
-            return {
-                "valid": False,
-                "warning": f"openFDA request failed: {exc}",
-                "frequency": frequency,
-            }
+            return DosageValidationResponse(
+                success=False,
+                error=f"openFDA request failed: {exc}",
+                medication=drug_name,
+                dose=f"{dose_amount}{dose_unit}",
+                is_valid=False,
+                warnings=[f"openFDA request failed: {exc}"],
+                reference_range=frequency,
+                frequency=frequency,
+                patient_weight_kg=patient_weight_kg,
+            ).model_dump()
 
     results = payload.get("results", [])
     if not results:
-        return {
-            "valid": False,
-            "warning": "No openFDA label found for drug.",
-            "frequency": frequency,
-        }
+        return DosageValidationResponse(
+            success=False,
+            error="No openFDA label found for drug.",
+            medication=drug_name,
+            dose=f"{dose_amount}{dose_unit}",
+            is_valid=False,
+            warnings=["No openFDA label found for drug."],
+            reference_range=frequency,
+            frequency=frequency,
+            patient_weight_kg=patient_weight_kg,
+        ).model_dump()
 
     label = results[0]
     dosage_sections = label.get("dosage_and_administration", [])
@@ -114,10 +141,14 @@ async def validate_dosage(
         valid = True
         warning = "Unable to parse label dose range; manual review recommended."
 
-    return {
-        "valid": valid,
-        "warning": warning,
-        "frequency": frequency,
-        "label_excerpt": dosage_text[:500],
-        "patient_weight_kg": patient_weight_kg,
-    }
+    warnings = [warning] if warning else []
+    return DosageValidationResponse(
+        medication=drug_name,
+        dose=f"{dose_amount}{dose_unit}",
+        is_valid=bool(valid),
+        warnings=warnings,
+        reference_range=frequency,
+        frequency=frequency,
+        label_excerpt=dosage_text[:500],
+        patient_weight_kg=patient_weight_kg,
+    ).model_dump()

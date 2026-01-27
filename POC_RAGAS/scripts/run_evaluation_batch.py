@@ -123,7 +123,7 @@ async def main() -> int:
         print("Checking agent API service health...")
         if not await ensure_service_running():
             print("ERROR: Agent API service is not running.")
-            print("Please start it manually: uvicorn POC_agent.service:app --port 8002")
+            print("Please start it manually: uvicorn api.main:app --port 8000")
             return 1
         print("Agent API service is ready")
     
@@ -336,7 +336,7 @@ async def main() -> int:
                             print(f"Last batch: {batch_num}")
                             print(f"Last question: {question_idx}")
                             print("\nTo resume:")
-                            print(f"  1. Start agent service: uvicorn POC_agent.service:app --port 8002")
+                            print(f"  1. Start unified API service: uvicorn api.main:app --port 8000")
                             print(f"  2. Run: python POC_RAGAS/scripts/run_evaluation_batch.py --batch-start {batch_num}")
                             print("="*60)
                             

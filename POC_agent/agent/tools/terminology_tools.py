@@ -33,10 +33,19 @@ async def search_icd10(term: str, max_results: int = 10) -> Dict[str, Any]:
         return {"error": data["error"], "results": [], "count": 0}
     results: List[Dict[str, str]] = []
     try:
-        codes = data[1]
-        names = data[2]
-        for code, name in zip(codes, names):
-            results.append({"code": code, "name": name})
+        # API response format: [count, [codes], null, [[code, name], ...]]
+        # data[0] = count
+        # data[1] = array of codes
+        # data[2] = null (not used)
+        # data[3] = array of [code, name] pairs
+        if not isinstance(data, list) or len(data) < 4:
+            return {"error": "unexpected ICD-10 response format", "results": [], "count": 0}
+        
+        # Use data[3] which contains [code, name] pairs
+        code_name_pairs = data[3] if data[3] else []
+        for pair in code_name_pairs:
+            if isinstance(pair, list) and len(pair) >= 2:
+                results.append({"code": pair[0], "name": pair[1]})
     except Exception as exc:  # noqa: BLE001
         return {"error": f"unexpected ICD-10 response: {exc}", "results": [], "count": 0}
     return {"results": results, "count": len(results)}

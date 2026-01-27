@@ -27,7 +27,6 @@ def calculate_gfr(
     age: int,
     sex: str,
     creatinine: float,
-    race: Optional[str] = None,
 ) -> Dict[str, Union[float, str]]:
     """Calculate eGFR using CKD-EPI 2021 equation (no race adjustment)."""
     sex_lower = sex.strip().lower()
@@ -46,7 +45,6 @@ def calculate_gfr(
     return {
         "gfr": round(gfr, 1),
         "stage": _egfr_stage(gfr),
-        "race_note": "Race adjustment not applied (CKD-EPI 2021).",
         "input_race": race,
     }
 

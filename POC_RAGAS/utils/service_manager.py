@@ -40,8 +40,8 @@ async def check_service_health(url: str = None, timeout: float = 5.0) -> bool:
         return False
 
 
-def start_service(port: int = 8002) -> Optional[subprocess.Popen]:
-    """Start the agent API service as a subprocess."""
+def start_service(port: int = 8000) -> Optional[subprocess.Popen]:
+    """Start the unified API service as a subprocess."""
     global _service_process
     
     # Check if service is already running
@@ -71,7 +71,7 @@ def start_service(port: int = 8002) -> Optional[subprocess.Popen]:
             sys.executable,
             "-m",
             "uvicorn",
-            "POC_agent.service:app",
+            "api.main:app",
             "--port",
             str(port),
             "--host",

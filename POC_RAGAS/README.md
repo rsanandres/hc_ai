@@ -14,8 +14,7 @@ This folder contains RAGAS-based evaluation tooling for the medical RAG agent.
 ## Prerequisites
 - PostgreSQL with pgvector running and populated (first 2000 files embedded)
 - Ollama running for embeddings (if used by the system)
-- Reranker service running on `:8001`
-- Agent service running on `:8002`
+- Unified API service running on `:8000` (includes agent, retrieval, embeddings)
 - `OPENAI_API_KEY` available for RAGAS metrics and test generation
 
 ## Install
@@ -33,11 +32,8 @@ cd postgres && docker-compose up -d
 # Ollama
 ollama serve
 
-# Reranker service
-uvicorn POC_retrieval.reranker.service:app --port 8001
-
-# Agent service
-uvicorn POC_agent.service:app --port 8002
+# Unified API service (includes agent, retrieval, embeddings)
+uvicorn api.main:app --port 8000
 ```
 
 ## Health checks
@@ -88,7 +84,7 @@ Environment variables used (all optional unless noted):
 - `RAGAS_NOISE_RATIO` (default: `0.25`)
 - `RAGAS_NOISE_SEED` (default: `42`)
 - `RAGAS_INCLUDE_FULL_JSON` (default: `true`)
-- `AGENT_API_URL` (default: `http://localhost:8002/agent/query`)
+- `AGENT_API_URL` (default: `http://localhost:8000/agent/query`)
 - `RERANKER_SERVICE_URL` (default: `http://localhost:8001`)
 
 Database settings (required for DB access):

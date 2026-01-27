@@ -407,7 +407,7 @@ async def search_similar_chunks(
     Args:
         query: Search query text
         k: Number of results to return
-        filter_metadata: Optional metadata filters
+        filter_metadata: Optional metadata filters (filters on JSON metadata column)
     
     Returns:
         List of similar Document objects
@@ -415,14 +415,54 @@ async def search_similar_chunks(
     try:
         vector_store = await initialize_vector_store()
         
+        # Normalize filter keys: convert patient_id to patientId (database uses camelCase)
+        normalized_filter = {}
+        if filter_metadata:
+            for key, value in filter_metadata.items():
+                if key == "patient_id":
+                    normalized_filter["patientId"] = value
+                else:
+                    normalized_filter[key] = value
+        
+        # If filtering by patient_id, retrieve a very large pool since semantic similarity
+        # might not align with patient_id - we need to cast a wide net
+        if normalized_filter.get("patientId"):
+            # Retrieve a large number to increase chances of finding patient's chunks
+            retrieve_k = min(max(k * 100, 1000), 5000)  # Cap at 5000 for performance
+        elif filter_metadata:
+            # Other filters - retrieve more but not as much
+            retrieve_k = max(k * 20, 100)
+        else:
+            retrieve_k = k
+        
         # Perform similarity search
         results = await vector_store.asimilarity_search(
             query=query,
-            k=k,
-            filter=filter_metadata
+            k=retrieve_k,
         )
         
-        return results
+        # Filter results in Python if filter_metadata is provided
+        if normalized_filter and results:
+            filtered_results = []
+            for doc in results:
+                doc_metadata = doc.metadata or {}
+                # Check if all filter conditions match
+                matches = True
+                for key, value in normalized_filter.items():
+                    doc_value = doc_metadata.get(key)
+                    if doc_value != value:
+                        matches = False
+                        break
+                if matches:
+                    filtered_results.append(doc)
+            
+            # If we didn't find enough matches, log a warning
+            if len(filtered_results) < k and normalized_filter:
+                print(f"Warning: Only found {len(filtered_results)}/{k} results after filtering from {len(results)} candidates (patientId={normalized_filter.get('patientId', 'N/A')})")
+            
+            return filtered_results[:k]
+        
+        return results[:k]
     except Exception as e:
         print(f"Error searching chunks: {e}")
         return []

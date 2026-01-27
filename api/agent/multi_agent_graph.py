@@ -17,37 +17,25 @@ from api.agent.prompt_loader import (
 )
 from api.agent.tools import (
     calculate,
-    calculate_bmi,
-    calculate_bsa,
-    calculate_creatinine_clearance,
-    calculate_gfr,
     cross_reference_meds,
-    get_drug_interactions,
-    get_drug_recalls,
-    get_drug_shortages,
     get_current_date,
     get_patient_timeline,
     get_session_context,
-    get_faers_events,
-    get_who_stats,
     lookup_loinc,
     lookup_rxnorm,
     search_clinical_notes,
-    search_clinical_trials,
-    search_fda_drugs,
     search_icd10,
     search_patient_records,
-    search_pubmed,
     validate_icd10_code,
-    validate_dosage,
 )
 
 # Import session store for automatic history injection
 try:
-    from api.session.store_dynamodb import build_store_from_env
+    from api.session.store_dynamodb import get_session_store
     SESSION_STORE_AVAILABLE = True
 except ImportError:
     SESSION_STORE_AVAILABLE = False
+    get_session_store = None
 
 # Import query classifier
 from api.agent.query_classifier import QueryClassifier, QueryType
@@ -110,19 +98,9 @@ def _get_researcher_agent() -> Any:
             get_patient_timeline,
             cross_reference_meds,
             get_session_context,
-            calculate,
-            calculate_bmi,
-            calculate_bsa,
-            calculate_creatinine_clearance,
-            calculate_gfr,
-            get_current_date,
-            search_pubmed,
-            search_clinical_trials,
             search_icd10,
-            search_fda_drugs,
-            get_drug_recalls,
-            get_drug_shortages,
-            get_drug_interactions,
+            calculate,
+            get_current_date,
         ]
         _RESEARCHER_AGENT = create_react_agent(llm, tools)
     return _RESEARCHER_AGENT
@@ -133,14 +111,9 @@ def _get_validator_agent() -> Any:
     if _VALIDATOR_AGENT is None:
         llm = get_llm()
         tools = [
-            validate_dosage,
-            lookup_loinc,
             validate_icd10_code,
+            lookup_loinc,
             lookup_rxnorm,
-            get_who_stats,
-            get_faers_events,
-            get_drug_recalls,
-            cross_reference_meds,
             get_current_date,
         ]
         _VALIDATOR_AGENT = create_react_agent(llm, tools)
@@ -153,7 +126,7 @@ def _load_conversation_history(session_id: str, limit: int = 10) -> List[Any]:
         return []
     
     try:
-        store = build_store_from_env()
+        store = get_session_store()
         recent_turns = store.get_recent(session_id, limit=limit)
         
         # Convert turns to messages (oldest first for chronological order)
@@ -217,8 +190,15 @@ async def _researcher_node(state: AgentState) -> AgentState:
 
 
 async def _validator_node(state: AgentState) -> AgentState:
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
-    system_prompt = get_validator_prompt()
+    # CALCULATE REMAINING ATTEMPTS
+    current_iter = state.get("iteration_count", 0)
+    max_iter = int(os.getenv("AGENT_MAX_ITERATIONS", "5"))
+    remaining = max_iter - current_iter
+
+    # INJECT INTO PROMPT
+    system_prompt = get_validator_prompt().format(
+        remaining_attempts=remaining
+    )
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(
@@ -268,9 +248,9 @@ def _classify_node(state: AgentState) -> dict:
     
     # Get session context if available
     context = {}
-    if SESSION_STORE_AVAILABLE:
+    if SESSION_STORE_AVAILABLE and get_session_store:
         try:
-            store = build_store_from_env()
+            store = get_session_store()
             # Basic context from metadata (could be expanded)
             summary = store.get_summary(session_id)
             context["last_query_type"] = summary.get("last_query_type")
@@ -282,9 +262,9 @@ def _classify_node(state: AgentState) -> dict:
     result = classifier.classify(query, session_context=context)
     
     # Update session metadata with query type (async side effect)
-    if SESSION_STORE_AVAILABLE:
+    if SESSION_STORE_AVAILABLE and get_session_store:
         try:
-            store = build_store_from_env()
+            store = get_session_store()
             store.update_summary(session_id, {"last_query_type": result.query_type.value})
         except Exception:
             pass

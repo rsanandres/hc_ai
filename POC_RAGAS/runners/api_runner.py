@@ -39,7 +39,7 @@ async def run_api_query(
             "tool_calls": [],
             "validation_result": None,
             "raw": {},
-            "error": "ConnectError: Agent API service is not running. Please start it manually: uvicorn POC_agent.service:app --port 8002",
+            "error": "ConnectError: Agent API service is not running. Please start it manually: uvicorn api.main:app --port 8000",
         }
     
     # Single attempt - no retries, no restarts
