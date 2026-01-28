@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from api.agent.graph import get_agent
 from api.agent.models import AgentDocument, AgentQueryRequest, AgentQueryResponse
 from api.agent.guardrails.validators import setup_guard
-from api.agent.mcp.langsmith_config import configure_langsmith_tracing
+
 from api.agent.pii_masker.factory import create_pii_masker
 from api.session.store_dynamodb import get_session_store
 
@@ -23,11 +23,7 @@ router = APIRouter()
 # Initialize singletons
 _pii_masker = create_pii_masker()
 _guard = setup_guard()
-try:
-    configure_langsmith_tracing()
-except Exception:
-    # Tracing is optional in local/dev environments.
-    pass
+
 
 
 def _build_sources(source_items: List[Dict[str, Any]]) -> List[AgentDocument]:
@@ -246,5 +242,5 @@ async def query_agent_stream(payload: AgentQueryRequest):
 
 
 @router.get("/health")
-def health() -> Dict[str, str]:
+async def health() -> Dict[str, str]:
     return {"status": "ok"}

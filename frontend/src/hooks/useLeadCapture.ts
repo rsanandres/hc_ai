@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-const STORAGE_KEY = 'atlas_lead_capture';
-const TIME_TRIGGER_MS = 2 * 60 * 1000; // 2 minutes
+const STORAGE_KEY = 'atlas_lead_capture_v2';
+const TIME_TRIGGER_MS = 10 * 60 * 1000; // 10 minutes
 const MESSAGE_COUNT_TRIGGER = 3;
 
 interface LeadCaptureState {
@@ -38,7 +38,7 @@ function getInitialState(): LeadCaptureState {
 export function useLeadCapture(messageCount: number) {
   const [isOpen, setIsOpen] = useState(false);
   const [state, setState] = useState<LeadCaptureState>(getInitialState);
-  
+
   // Derived state - whether we've already triggered the popup
   const hasTriggered = useMemo(() => {
     return state.dismissed || state.submitted;
@@ -55,16 +55,13 @@ export function useLeadCapture(messageCount: number) {
     return () => clearTimeout(timer);
   }, [hasTriggered]);
 
-  // Message count trigger - compute this synchronously based on state
-  const shouldOpenForMessages = !hasTriggered && !isOpen && messageCount >= MESSAGE_COUNT_TRIGGER;
-  
-  // Use layout effect to open modal if message count threshold is reached
-  // This runs synchronously so it's like a derived state update
-  if (shouldOpenForMessages && !isOpen) {
-    // Schedule the state update for next tick to avoid the ESLint warning
-    // while still being effectively synchronous
-    queueMicrotask(() => setIsOpen(true));
-  }
+  // Message count trigger
+  useEffect(() => {
+    if (!hasTriggered && !isOpen && messageCount >= MESSAGE_COUNT_TRIGGER) {
+      console.log('Lead capture triggered by message count:', messageCount);
+      setIsOpen(true);
+    }
+  }, [hasTriggered, isOpen, messageCount]);
 
   const dismiss = useCallback(() => {
     const newState: LeadCaptureState = {

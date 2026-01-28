@@ -289,25 +289,37 @@ class SessionStore:
     ) -> None:
         ttl = _ttl_epoch(self.ttl_days)
         # Persist under SK=summary
-        expr = ["updated_at = :updated_at"]
+        # Persist under SK=summary
+        expr = ["#updated_at = :updated_at"]
         values: Dict[str, Any] = {":updated_at": _utc_iso()}
+        names: Dict[str, str] = {"#updated_at": "updated_at"}
+
         if patient_id:
-            expr.append("patient_id = :patient_id")
+            expr.append("#patient_id = :patient_id")
             values[":patient_id"] = patient_id
+            names["#patient_id"] = "patient_id"
         if user_id:
-            expr.append("user_id = :user_id")
+            expr.append("#user_id = :user_id")
             values[":user_id"] = user_id
+            names["#user_id"] = "user_id"
+
         for key, val in summary.items():
-            expr.append(f"{key} = :{key}")
+            # Use expression attribute names to handle reserved words like 'name', 'status'
+            expr.append(f"#{key} = :{key}")
             values[f":{key}"] = val
+            names[f"#{key}"] = key
+            
         if ttl:
-            expr.append("ttl = :ttl")
+            expr.append("#ttl = :ttl")
             values[":ttl"] = ttl
+            names["#ttl"] = "ttl"
+
         update_expr = "SET " + ", ".join(expr)
         self.summary_table.update_item(
             Key={"session_id": session_id, "sk": "summary"},
             UpdateExpression=update_expr,
             ExpressionAttributeValues=values,
+            ExpressionAttributeNames=names,
         )
 
     def get_summary(self, session_id: str) -> Dict[str, Any]:
@@ -349,21 +361,43 @@ class SessionStore:
 
     def list_sessions_by_user(self, user_id: str) -> List[Dict[str, Any]]:
         """List all sessions for a user, sorted by last_activity (newest first)."""
+        items = []
         try:
             # Try to use GSI if available
-            resp = self.summary_table.query(
-                IndexName="user_id-index",
-                KeyConditionExpression=Key("user_id").eq(user_id),
-                FilterExpression=Key("sk").eq("summary"),
-                ScanIndexForward=False,  # Sort descending by last_activity
-            )
+            start_key = None
+            while True:
+                kwargs = {
+                    "IndexName": "user_id-index",
+                    "KeyConditionExpression": Key("user_id").eq(user_id),
+                    "FilterExpression": Key("sk").eq("summary"),
+                    "ScanIndexForward": False,  # Sort descending by last_activity
+                }
+                if start_key:
+                    kwargs["ExclusiveStartKey"] = start_key
+
+                resp = self.summary_table.query(**kwargs)
+                items.extend(resp.get("Items", []))
+                
+                start_key = resp.get("LastEvaluatedKey")
+                if not start_key:
+                    break
         except ClientError:
             # Fallback to scan with filter if GSI not available
-            resp = self.summary_table.scan(
-                FilterExpression=Key("sk").eq("summary") & Key("user_id").eq(user_id),
-            )
+            start_key = None
+            while True:
+                kwargs = {
+                    "FilterExpression": Key("sk").eq("summary") & Key("user_id").eq(user_id),
+                }
+                if start_key:
+                    kwargs["ExclusiveStartKey"] = start_key
+
+                resp = self.summary_table.scan(**kwargs)
+                items.extend(resp.get("Items", []))
+                
+                start_key = resp.get("LastEvaluatedKey")
+                if not start_key:
+                    break
         
-        items = resp.get("Items", [])
         # Sort by last_activity if not already sorted
         items.sort(key=lambda x: x.get("last_activity", x.get("updated_at", "")), reverse=True)
         return items

@@ -18,7 +18,8 @@ import {
   TextField,
   alpha,
 } from '@mui/material';
-import { Plus, Trash2, Edit, X } from 'lucide-react';
+import { Trash2, MessageSquare, Plus, MoreVertical, X, AlertCircle, Edit } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useSessions } from '@/hooks/useSessions';
 import { SessionMetadata } from '@/types';
 
@@ -47,12 +48,23 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
   const [sessionToEdit, setSessionToEdit] = useState<SessionMetadata | null>(null);
   const [editName, setEditName] = useState('');
   const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [deleteOldestDialogOpen, setDeleteOldestDialogOpen] = useState(false);
+  const [oldestSession, setOldestSession] = useState<SessionMetadata | null>(null);
 
   const handleNewSession = async () => {
     try {
       const atLimit = await checkSessionLimit();
       if (atLimit) {
-        setLimitDialogOpen(true);
+        // Find oldest session to propose for deletion
+        if (sessions.length > 0) {
+          // Assuming sessions are sorted by last_activity desc (newest first)
+          // The last one is the oldest
+          const oldest = sessions[sessions.length - 1];
+          setOldestSession(oldest);
+          setDeleteOldestDialogOpen(true);
+        } else {
+          setLimitDialogOpen(true);
+        }
         return;
       }
 
@@ -63,7 +75,14 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
       }
     } catch (err) {
       if (err instanceof Error && err.message === 'SESSION_LIMIT_EXCEEDED') {
-        setLimitDialogOpen(true);
+        // Fallback if checkSessionLimit didn't catch it but backend did
+        if (sessions.length > 0) {
+          const oldest = sessions[sessions.length - 1];
+          setOldestSession(oldest);
+          setDeleteOldestDialogOpen(true);
+        } else {
+          setLimitDialogOpen(true);
+        }
       }
     }
   };
@@ -94,6 +113,22 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
     }
   };
 
+  const confirmDeleteOldest = async () => {
+    if (oldestSession) {
+      // 1. Delete the oldest session
+      await removeSession(oldestSession.session_id);
+      setDeleteOldestDialogOpen(false);
+      setOldestSession(null);
+
+      // 2. Create the new session
+      const newSession = await createNewSession();
+      if (newSession) {
+        switchSession(newSession.session_id);
+        onSessionSelect(newSession.session_id);
+      }
+    }
+  };
+
   const confirmEdit = async () => {
     if (sessionToEdit) {
       await updateSession(sessionToEdit.session_id, { name: editName });
@@ -103,31 +138,52 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
     }
   };
 
-  const formatDate = (dateString: string) => {
-    // Use a consistent format that works on both server and client
-    // Avoid using Date.now() or new Date() during render to prevent hydration mismatches
-    if (typeof window === 'undefined') {
-      // Server-side: return a safe placeholder
-      return dateString;
-    }
-    
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
+  // Hydration-safe date formatter
+  const useFormattedDate = (dateString: string) => {
+    const [formatted, setFormatted] = useState(dateString);
 
-      if (diffMins < 1) return 'Just now';
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-      // Use a consistent date format
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
-    } catch {
-      return dateString;
-    }
+    useEffect(() => {
+      try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) {
+          setFormatted('Just now');
+          return;
+        }
+        if (diffMins < 60) {
+          setFormatted(`${diffMins}m ago`);
+          return;
+        }
+        if (diffHours < 24) {
+          setFormatted(`${diffHours}h ago`);
+          return;
+        }
+        if (diffDays < 7) {
+          setFormatted(`${diffDays}d ago`);
+          return;
+        }
+        setFormatted(date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+        }));
+      } catch {
+        setFormatted(dateString);
+      }
+    }, [dateString]);
+
+    return formatted;
+  };
+
+  // Component to render date to avoid hydration mismatch in list
+  const SessionDate = ({ date }: { date: string }) => {
+    const formatted = useFormattedDate(date);
+    return <>{formatted}</>;
   };
 
   return (
@@ -238,7 +294,7 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
                           </Typography>
                         )}
                         <Typography variant="caption" color="text.secondary">
-                          {formatDate(session.last_activity)} • {session.message_count} messages
+                          <SessionDate date={session.last_activity} /> • {session.message_count} messages
                         </Typography>
                       </Box>
                       <Box
@@ -280,7 +336,7 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
         <DialogTitle>Delete Session?</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{sessionToDelete?.name || 'this session'}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{sessionToDelete?.name || 'this session'}&quot;? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -314,7 +370,7 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
         </DialogActions>
       </Dialog>
 
-      {/* Session Limit Dialog */}
+      {/* Session Limit Dialog (OLD - kept as fallback) */}
       <Dialog open={limitDialogOpen} onClose={() => setLimitDialogOpen(false)}>
         <DialogTitle>Session Limit Reached</DialogTitle>
         <DialogContent>
@@ -323,11 +379,49 @@ export function SessionSidebar({ open, onClose, onSessionSelect }: SessionSideba
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setLimitDialogOpen(true)} variant="contained">
+          <Button onClick={() => setLimitDialogOpen(false)} variant="contained">
             OK
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Auto-Delete Oldest Confirmation Dialog */}
+      <Dialog open={deleteOldestDialogOpen} onClose={() => setDeleteOldestDialogOpen(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
+          <AlertCircle size={24} />
+          Session Limit Reached
+        </DialogTitle>
+        <DialogContent>
+          <Typography paragraph>
+            You have reached the limit of <strong>{maxSessions} chats</strong>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            To create a new chat, we need to delete your oldest session:
+          </Typography>
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px dashed', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {oldestSession?.name || 'Oldest Session'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Last active: {oldestSession?.last_activity ? new Date(oldestSession.last_activity).toLocaleDateString() : 'Unknown'}
+            </Typography>
+          </Box>
+          <Typography sx={{ mt: 2 }}>
+            Do you want to delete this chat and proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOldestDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmDeleteOldest} variant="contained" color="warning">
+            Delete & Create New
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Debug Info */}
+      {/* <Box sx={{ position: 'fixed', bottom: 4, right: 4, opacity: 0.3, fontSize: '10px', pointerEvents: 'none' }}>
+        UID: {userId}
+      </Box> */}
     </>
   );
 }

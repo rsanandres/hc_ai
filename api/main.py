@@ -14,7 +14,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from utils.env_loader import load_env_recursive
-from api.shared.middleware import setup_cors
+from utils.env_loader import load_env_recursive
+from api.shared.middleware import setup_cors, setup_logging
 
 # Load environment variables
 load_env_recursive(ROOT_DIR)
@@ -28,6 +29,7 @@ app = FastAPI(
 
 # Setup CORS
 setup_cors(app)
+setup_logging(app)
 
 # Import routers
 from api.agent import router as agent_router

@@ -13,6 +13,4 @@ class PIIMaskerInterface(ABC):
     def mask_pii(self, text: str) -> Tuple[str, Dict]:
         """Return masked text and an entity map."""
 
-    @abstractmethod
-    def detect_pii(self, text: str) -> List[Dict]:
-        """Detect PII entities without masking."""
+

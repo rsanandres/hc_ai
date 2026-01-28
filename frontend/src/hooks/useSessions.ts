@@ -13,10 +13,10 @@ import { SessionMetadata, SessionCreateRequest } from '@/types';
 import { useUser } from './useUser';
 
 const ACTIVE_SESSION_KEY = 'atlas_active_session_id';
-const MAX_SESSIONS = 5;
+const MAX_SESSIONS = 20;
 
 export function useSessions() {
-  const { userId, isClient } = useUser();
+  const { userId, isClient, login } = useUser();
   const [sessions, setSessions] = useState<SessionMetadata[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +32,7 @@ export function useSessions() {
 
   const checkSessionLimit = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
-    
+
     try {
       const count = await getSessionCount(userId);
       return count.count >= MAX_SESSIONS;
@@ -46,7 +46,7 @@ export function useSessions() {
       console.log('[useSessions] No userId, skipping session load');
       return;
     }
-    
+
     console.log('[useSessions] Loading sessions for user:', userId);
     setIsLoading(true);
     setError(null);
@@ -56,13 +56,13 @@ export function useSessions() {
         const healthUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/retrieval/rerank/health`;
         const healthController = new AbortController();
         const healthTimeout = setTimeout(() => healthController.abort(), 3000);
-        
+
         const healthResponse = await fetch(healthUrl, {
           signal: healthController.signal,
         });
-        
+
         clearTimeout(healthTimeout);
-        
+
         if (!healthResponse.ok) {
           throw new Error(`Service health check failed: ${healthResponse.status}`);
         }
@@ -76,41 +76,35 @@ export function useSessions() {
         setIsLoading(false);
         return;
       }
-      
+
       const response = await getSessions(userId);
-      console.log('[useSessions] Loaded sessions:', response.sessions.length, response.sessions);
-      setSessions(response.sessions);
-      
+      console.log('[useSessions] Loaded sessions:', response?.sessions?.length || 0, response?.sessions);
+      const sessionList = response?.sessions || [];
+      setSessions(sessionList);
+
       // If no active session, either use first existing or create new one
       const storedSessionId = localStorage.getItem(ACTIVE_SESSION_KEY);
-      if (storedSessionId && response.sessions.some(s => s.session_id === storedSessionId)) {
+      if (storedSessionId && sessionList.some(s => s.session_id === storedSessionId)) {
         // Use stored session if it still exists
         console.log('[useSessions] Using stored session:', storedSessionId);
         setActiveSessionId(storedSessionId);
-      } else if (response.sessions.length > 0) {
-        // Use first session if available
-        const firstSession = response.sessions[0];
-        console.log('[useSessions] Using first session:', firstSession.session_id);
+      } else if (sessionList.length > 0) {
+        // Use first session if available (list is already sorted by backend)
+        const firstSession = sessionList[0];
+        console.log('[useSessions] Using recent session:', firstSession.session_id);
         setActiveSessionId(firstSession.session_id);
         localStorage.setItem(ACTIVE_SESSION_KEY, firstSession.session_id);
       } else {
-        // No sessions exist, create one automatically
+        // Only create new session if list is empty
         console.log('[useSessions] No sessions found, creating new one');
         try {
-          const atLimit = await checkSessionLimit();
-          if (!atLimit) {
-            const newSession = await createSessionApi(userId);
-            console.log('[useSessions] Created new session:', newSession.session_id);
-            setSessions([newSession]);
+          const newSession = await createNewSession();
+          if (newSession) {
             setActiveSessionId(newSession.session_id);
             localStorage.setItem(ACTIVE_SESSION_KEY, newSession.session_id);
-          } else {
-            console.warn('[useSessions] Session limit reached, cannot create new session');
           }
-        } catch (createErr) {
-          console.error('[useSessions] Failed to create initial session:', createErr);
-          // If creation fails, still set empty state so UI can work
-          setActiveSessionId('');
+        } catch (err) {
+          console.error('[useSessions] Failed to create initial session:', err);
         }
       }
     } catch (err) {
@@ -187,7 +181,7 @@ export function useSessions() {
     try {
       await deleteSession(sessionId);
       setSessions(prev => prev.filter(s => s.session_id !== sessionId));
-      
+
       // If deleted session was active, switch to first available or create new
       if (sessionId === activeSessionId) {
         const remaining = sessions.filter(s => s.session_id !== sessionId);
@@ -230,5 +224,7 @@ export function useSessions() {
     loadSessionMessages,
     checkSessionLimit,
     maxSessions: MAX_SESSIONS,
+    userId,
+    login,
   };
 }

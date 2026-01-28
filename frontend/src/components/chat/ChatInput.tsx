@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useCallback, KeyboardEvent } from 'react';
-import { Box, TextField, IconButton, alpha, CircularProgress } from '@mui/material';
-import { Send } from 'lucide-react';
+import { Box, TextField, IconButton, alpha, CircularProgress, Tooltip } from '@mui/material';
+import { Send, Square } from 'lucide-react'; // Added Square
 import { motion } from 'framer-motion';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop?: () => void; // Added onStop prop
   isLoading: boolean;
   disabled?: boolean;
 }
 
-export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isLoading, disabled }: ChatInputProps) {
   const [input, setInput] = useState('');
 
   const handleSend = useCallback(() => {
@@ -20,6 +21,12 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
       setInput('');
     }
   }, [input, isLoading, disabled, onSend]);
+
+  const handleStop = useCallback(() => {
+    if (onStop) {
+      onStop();
+    }
+  }, [onStop]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -52,7 +59,7 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={disabled}
+          disabled={disabled || (isLoading && !onStop)}
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: '12px',
@@ -70,30 +77,46 @@ export function ChatInput({ onSend, isLoading, disabled }: ChatInputProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <IconButton
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading || disabled}
-            sx={{
-              width: 48,
-              height: 48,
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              borderRadius: '12px',
-              '&:hover': {
-                bgcolor: 'primary.dark',
-              },
-              '&.Mui-disabled': {
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.3),
-                color: (theme) => alpha(theme.palette.primary.contrastText, 0.5),
-              },
-            }}
-          >
-            {isLoading ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
+          {isLoading ? (
+            <Tooltip title="Stop generation">
+              <IconButton
+                onClick={handleStop}
+                sx={{
+                  width: 48,
+                  height: 48,
+                  bgcolor: 'error.main', // Red color for stop
+                  color: 'error.contrastText',
+                  borderRadius: '12px',
+                  '&:hover': {
+                    bgcolor: 'error.dark',
+                  },
+                }}
+              >
+                <Square size={20} fill="currentColor" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <IconButton
+              onClick={handleSend}
+              disabled={!input.trim() || disabled}
+              sx={{
+                width: 48,
+                height: 48,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                borderRadius: '12px',
+                '&:hover': {
+                  bgcolor: 'primary.dark',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.3),
+                  color: (theme) => alpha(theme.palette.primary.contrastText, 0.5),
+                },
+              }}
+            >
               <Send size={20} />
-            )}
-          </IconButton>
+            </IconButton>
+          )}
         </motion.div>
       </Box>
     </Box>

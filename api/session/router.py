@@ -25,6 +25,7 @@ from api.session.models import (
 router = APIRouter()
 
 SESSION_RECENT_LIMIT = int(os.getenv("SESSION_RECENT_LIMIT", "10"))
+MAX_SESSIONS_PER_USER = int(os.getenv("MAX_SESSIONS_PER_USER", "20"))
 
 
 def _get_session_store() -> SessionStore:
@@ -41,17 +42,20 @@ def append_session_turn(payload: SessionTurnRequest) -> SessionTurnResponse:
         meta=payload.meta,
         patient_id=payload.patient_id,
     )
-    recent = store.get_recent(payload.session_id, limit=payload.return_limit or SESSION_RECENT_LIMIT)
+    
+    # Auto-name session if it's the first user message
     summary = store.get_summary(payload.session_id)
+    if payload.role == "user" and (not summary.get("name") or summary.get("name") == "New Session"):
+        # Simple naming: First 50 chars of message
+        new_name = payload.text[:50] + "..." if len(payload.text) > 50 else payload.text
+        store.update_summary(session_id=payload.session_id, summary={"name": new_name})
+        
+    recent = store.get_recent(payload.session_id, limit=payload.return_limit or SESSION_RECENT_LIMIT)
+    summary = store.get_summary(payload.session_id) # Refresh summary with new name
     return SessionTurnResponse(session_id=payload.session_id, recent_turns=recent, summary=summary)
 
 
-@router.get("/{session_id}", response_model=SessionTurnResponse)
-def get_session_state(session_id: str, limit: int = SESSION_RECENT_LIMIT) -> SessionTurnResponse:
-    store = _get_session_store()
-    recent = store.get_recent(session_id, limit=limit)
-    summary = store.get_summary(session_id)
-    return SessionTurnResponse(session_id=session_id, recent_turns=recent, summary=summary)
+
 
 
 @router.post("/summary")
@@ -106,7 +110,8 @@ def get_session_count(user_id: str) -> SessionCountResponse:
     """Get session count for a user."""
     store = _get_session_store()
     count = store.get_session_count(user_id)
-    return SessionCountResponse(user_id=user_id, count=count, max_allowed=5)
+    MAX_SESSIONS = int(os.getenv("MAX_SESSIONS_PER_USER", "50"))
+    return SessionCountResponse(user_id=user_id, count=count, max_allowed=MAX_SESSIONS)
 
 
 @router.post("/create", response_model=SessionMetadata)
@@ -116,13 +121,14 @@ def create_session(payload: SessionCreateRequest) -> SessionMetadata:
     
     # Check session limit
     count = store.get_session_count(payload.user_id)
-    if count >= 5:
+    MAX_SESSIONS = int(os.getenv("MAX_SESSIONS_PER_USER", "50"))
+    if count >= MAX_SESSIONS:
         raise HTTPException(
             status_code=400,
             detail={
                 "error": "Session limit reached",
                 "code": "SESSION_LIMIT_EXCEEDED",
-                "max_sessions": 5,
+                "max_sessions": MAX_SESSIONS,
             }
         )
     
@@ -213,3 +219,11 @@ def update_session_metadata(session_id: str, payload: SessionUpdateRequest) -> S
     
     # Return updated metadata
     return get_session_metadata(session_id)
+
+
+@router.get("/{session_id}", response_model=SessionTurnResponse)
+def get_session_state(session_id: str, limit: int = SESSION_RECENT_LIMIT) -> SessionTurnResponse:
+    store = _get_session_store()
+    recent = store.get_recent(session_id, limit=limit)
+    summary = store.get_summary(session_id)
+    return SessionTurnResponse(session_id=session_id, recent_turns=recent, summary=summary)

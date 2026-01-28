@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Typography, Chip, Stack, Skeleton, alpha, Collapse, IconButton } from '@mui/material';
 import { motion } from 'framer-motion';
 import { User, Bot, FileText, ChevronDown, ChevronUp, Brain, CheckCircle, AlertCircle } from 'lucide-react';
@@ -11,13 +11,22 @@ import { Message } from '@/types';
 
 interface MessageBubbleProps {
   message: Message;
+  debugMode?: boolean;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, debugMode = false }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isLoading = message.isLoading;
   const [showThinking, setShowThinking] = useState(false);
   const hasThinkingSteps = !isUser && (message.researcherOutput || message.validatorOutput);
+
+  // Auto-show thinking steps if debug mode is on
+  useEffect(() => {
+    if (debugMode && hasThinkingSteps && !showThinking) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowThinking(true);
+    }
+  }, [debugMode, hasThinkingSteps, showThinking]);
 
   return (
     <motion.div
@@ -43,7 +52,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            bgcolor: isUser 
+            bgcolor: isUser
               ? (theme) => alpha(theme.palette.primary.main, 0.15)
               : (theme) => alpha(theme.palette.secondary.main, 0.15),
             color: isUser ? 'primary.main' : 'secondary.main',
@@ -66,11 +75,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               borderRadius: '12px',
               borderTopLeftRadius: isUser ? '12px' : '4px',
               borderTopRightRadius: isUser ? '4px' : '12px',
-              bgcolor: isUser 
+              bgcolor: isUser
                 ? (theme) => alpha(theme.palette.primary.main, 0.1)
                 : (theme) => alpha(theme.palette.background.paper, 0.6),
               border: '1px solid',
-              borderColor: isUser 
+              borderColor: isUser
                 ? (theme) => alpha(theme.palette.primary.main, 0.2)
                 : 'divider',
             }}
@@ -159,7 +168,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   {showThinking ? 'Hide' : 'Show'} thinking steps
                 </Typography>
               </IconButton>
-              
+
               <Collapse in={showThinking}>
                 <Box
                   sx={{
@@ -200,7 +209,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                       </Typography>
                     </Box>
                   )}
-                  
+
                   {message.validatorOutput && (
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
@@ -284,3 +293,4 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     </motion.div>
   );
 }
+

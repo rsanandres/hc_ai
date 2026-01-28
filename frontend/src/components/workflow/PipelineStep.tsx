@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { Box, Typography, Collapse, alpha } from '@mui/material';
 import { motion } from 'framer-motion';
-import { 
-  MessageSquare, 
-  ShieldCheck, 
-  Database, 
-  Layers, 
-  Brain, 
+import {
+  MessageSquare,
+  ShieldCheck,
+  Database,
+  Layers,
+  Brain,
   CheckCircle,
   Circle,
   SkipForward,
@@ -70,42 +70,42 @@ function getStepDetails(stepId: string, queryText?: string, details?: Record<str
       ];
     case 'pii_mask':
       return [
-        { label: 'Entities Found', value: getNum(details, 'entitiesFound', Math.floor(Math.random() * 5) + 1), icon: Eye },
-        { label: 'Names Masked', value: getNum(details, 'namesMasked', Math.floor(Math.random() * 2)), icon: EyeOff },
-        { label: 'IDs Masked', value: getNum(details, 'idsMasked', Math.floor(Math.random() * 3) + 1), icon: EyeOff },
-        { label: 'Dates Masked', value: getNum(details, 'datesMasked', Math.floor(Math.random() * 2)), icon: EyeOff },
-        { label: 'Processing Time', value: `${getNum(details, 'processingTime', Math.floor(Math.random() * 50) + 10)}ms`, icon: Clock },
+        { label: 'Entities Found', value: getNum(details, 'entitiesFound', 0), icon: Eye },
+        { label: 'Names Masked', value: getNum(details, 'namesMasked', 0), icon: EyeOff },
+        { label: 'IDs Masked', value: getNum(details, 'idsMasked', 0), icon: EyeOff },
+        { label: 'Dates Masked', value: getNum(details, 'datesMasked', 0), icon: EyeOff },
+        { label: 'Processing Time', value: `${getNum(details, 'processingTime', 0)}ms`, icon: Clock },
       ];
     case 'vector_search':
       return [
         { label: 'Collection', value: 'fhir_chunks', icon: Database },
-        { label: 'Documents Retrieved', value: getNum(details, 'docsRetrieved', Math.floor(Math.random() * 30) + 20), icon: FileText, highlight: true },
-        { label: 'Search Time', value: `${getNum(details, 'searchTime', Math.floor(Math.random() * 100) + 50)}ms`, icon: Clock },
+        { label: 'Documents Retrieved', value: getNum(details, 'docsRetrieved', 0), icon: FileText, highlight: true },
+        { label: 'Search Time', value: `${getNum(details, 'searchTime', 0)}ms`, icon: Clock },
         { label: 'Embedding Model', value: 'Amazon Titan v2', icon: Zap },
       ];
     case 'rerank':
       return [
-        { label: 'Candidates In', value: getNum(details, 'candidatesIn', Math.floor(Math.random() * 30) + 20), icon: FileText },
-        { label: 'Results Out', value: getNum(details, 'resultsOut', 10), icon: FileText, highlight: true },
-        { label: 'Top Score', value: getNum(details, 'topScore', Math.random() * 0.3 + 0.7).toFixed(3), icon: Zap },
+        { label: 'Candidates In', value: getNum(details, 'candidatesIn', 0), icon: FileText },
+        { label: 'Results Out', value: getNum(details, 'resultsOut', 0), icon: FileText, highlight: true },
+        { label: 'Top Score', value: getNum(details, 'topScore', 0).toFixed(3), icon: Zap },
         { label: 'Model', value: 'MiniLM-L6-v2', icon: Brain },
-        { label: 'Rerank Time', value: `${getNum(details, 'rerankTime', Math.floor(Math.random() * 200) + 100)}ms`, icon: Clock },
+        { label: 'Rerank Time', value: `${getNum(details, 'rerankTime', 0)}ms`, icon: Clock },
       ];
     case 'llm_react':
       return [
         { label: 'Model', value: 'Claude 3.5 Haiku', icon: Brain },
-        { label: 'Input Tokens', value: getNum(details, 'inputTokens', Math.floor(Math.random() * 1500) + 500), icon: Hash },
-        { label: 'Output Tokens', value: getNum(details, 'outputTokens', Math.floor(Math.random() * 400) + 100), icon: Hash },
-        { label: 'Reasoning Steps', value: getNum(details, 'reasoningSteps', Math.floor(Math.random() * 3) + 1), icon: Zap, highlight: true },
-        { label: 'Tools Invoked', value: getNum(details, 'toolsInvoked', Math.floor(Math.random() * 3) + 1), icon: Layers },
-        { label: 'Latency', value: `${getNum(details, 'latency', Math.floor(Math.random() * 2000) + 800)}ms`, icon: Clock },
+        { label: 'Input Tokens', value: getNum(details, 'inputTokens', 0), icon: Hash },
+        { label: 'Output Tokens', value: getNum(details, 'outputTokens', 0), icon: Hash },
+        { label: 'Reasoning Steps', value: getNum(details, 'reasoningSteps', 0), icon: Zap, highlight: true },
+        { label: 'Tools Invoked', value: getNum(details, 'toolsInvoked', 0), icon: Layers },
+        { label: 'Latency', value: `${getNum(details, 'latency', 0)}ms`, icon: Clock },
       ];
     case 'response':
       return [
-        { label: 'Response Length', value: `${getNum(details, 'responseLength', Math.floor(Math.random() * 300) + 100)} chars`, icon: Hash },
-        { label: 'Sources Cited', value: getNum(details, 'sourcesCited', Math.floor(Math.random() * 5) + 1), icon: FileText, highlight: true },
-        { label: 'PII Re-masked', value: getNum(details, 'piiRemasked', Math.floor(Math.random() * 2)), icon: EyeOff },
-        { label: 'Total Latency', value: `${getNum(details, 'totalLatency', Math.floor(Math.random() * 3000) + 1500)}ms`, icon: Clock },
+        { label: 'Response Length', value: `${getNum(details, 'responseLength', 0)} chars`, icon: Hash },
+        { label: 'Sources Cited', value: getNum(details, 'sourcesCited', 0), icon: FileText, highlight: true },
+        { label: 'PII Re-masked', value: getNum(details, 'piiRemasked', 0), icon: EyeOff },
+        { label: 'Total Latency', value: `${getNum(details, 'totalLatency', 0)}ms`, icon: Clock },
       ];
     default:
       return [];
@@ -148,8 +148,8 @@ export function PipelineStep({ step, isLast, queryText, details }: PipelineStepP
               justifyContent: 'center',
               bgcolor: (theme) => alpha(
                 isCompleted ? theme.palette.success.main :
-                isActive ? theme.palette.primary.main :
-                theme.palette.text.disabled,
+                  isActive ? theme.palette.primary.main :
+                    theme.palette.text.disabled,
                 isSkipped ? 0.05 : 0.15
               ),
               color: statusColor,
@@ -170,7 +170,7 @@ export function PipelineStep({ step, isLast, queryText, details }: PipelineStepP
             )}
           </Box>
         </motion.div>
-        
+
         {/* Connector line */}
         {!isLast && (
           <Box
@@ -231,7 +231,7 @@ export function PipelineStep({ step, isLast, queryText, details }: PipelineStepP
             {step.name}
           </Typography>
         </Box>
-        
+
         <Typography
           variant="caption"
           sx={{

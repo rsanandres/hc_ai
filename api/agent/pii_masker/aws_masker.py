@@ -38,20 +38,4 @@ class AWSComprehendMedicalMasker(PIIMaskerInterface):
             }
         return masked_text, entity_map
 
-    def detect_pii(self, text: str) -> List[Dict]:
-        if not text:
-            return []
 
-        response = self._client.detect_phi(Text=text)
-        entities = []
-        for entity in response.get("Entities", []):
-            entities.append(
-                {
-                    "text": text[entity["BeginOffset"] : entity["EndOffset"]],
-                    "type": entity["Type"],
-                    "start": entity["BeginOffset"],
-                    "end": entity["EndOffset"],
-                    "score": entity.get("Score"),
-                }
-            )
-        return entities

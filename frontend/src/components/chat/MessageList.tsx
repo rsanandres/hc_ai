@@ -8,9 +8,10 @@ import { MessageBubble } from './MessageBubble';
 
 interface MessageListProps {
   messages: Message[];
+  debugMode?: boolean;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, debugMode = false }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
@@ -49,7 +50,7 @@ export function MessageList({ messages }: MessageListProps) {
           Atlas RAG Agent
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
-          Ask questions about clinical data powered by retrieval-augmented generation. 
+          Ask questions about clinical data powered by retrieval-augmented generation.
           Your queries are processed through PII masking, vector search, and Claude 3.5 Haiku.
         </Typography>
         <Box sx={{ mt: 2 }}>
@@ -72,9 +73,10 @@ export function MessageList({ messages }: MessageListProps) {
       }}
     >
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble key={message.id} message={message} debugMode={debugMode} />
       ))}
       <div ref={bottomRef} />
     </Box>
   );
 }
+

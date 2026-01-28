@@ -20,19 +20,9 @@ from api.agent.tools.schemas import (
     SessionContextResponse,
     TimelineResponse,
 )
+from api.agent.tools.retrieval import _reranker_url
 
 _pii_masker = create_pii_masker()
-
-
-def _reranker_url() -> str:
-    """Get reranker URL - unified API endpoint on port 8000."""
-    url = os.getenv("RERANKER_SERVICE_URL", "http://localhost:8000/retrieval")
-    if url.endswith("/rerank") or url.endswith("/rerank/with-context"):
-        return url
-    # Ensure it points to /retrieval/rerank on unified API
-    if not url.endswith("/retrieval"):
-        url = url.rstrip("/") + "/retrieval"
-    return f"{url.rstrip('/')}/rerank"
 
 
 def _mask_content(text: str) -> str:
@@ -52,7 +42,7 @@ def _call_reranker(
         "k_return": k_return,
         "filter_metadata": filter_metadata,
     }
-    response = requests.post(_reranker_url(), json=payload, timeout=60)
+    response = requests.post(_reranker_url("rerank"), json=payload, timeout=60)
     response.raise_for_status()
     data = response.json()
     results = data.get("results", [])

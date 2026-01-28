@@ -41,35 +41,35 @@ async function fetchWithTimeout(
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
+
   try {
     console.log(`[fetchWithTimeout] ${options.method || 'GET'} ${url}`, {
       hasBody: !!options.body,
       timeout,
     });
-    
+
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     console.log(`[fetchWithTimeout] Response: ${response.status} ${response.statusText}`, {
       url,
       ok: response.ok,
       headers: Object.fromEntries(response.headers.entries()),
     });
-    
+
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
-    
+
     // Handle different error types
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorName = error instanceof Error ? error.name : 'UnknownError';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     if (errorName === 'AbortError') {
       const timeoutError = new Error(`Request timeout after ${timeout}ms: ${options.method || 'GET'} ${url}`);
       console.error('[fetchWithTimeout] Timeout error:', {
@@ -79,14 +79,14 @@ async function fetchWithTimeout(
       });
       throw timeoutError;
     }
-    
+
     // Check for network/CORS errors
-    const isNetworkError = errorMessage.includes('Failed to fetch') || 
-                          errorMessage.includes('NetworkError') ||
-                          errorMessage.includes('Network request failed') ||
-                          errorName === 'TypeError' ||
-                          errorName === 'NetworkError';
-    
+    const isNetworkError = errorMessage.includes('Failed to fetch') ||
+      errorMessage.includes('NetworkError') ||
+      errorMessage.includes('Network request failed') ||
+      errorName === 'TypeError' ||
+      errorName === 'NetworkError';
+
     if (isNetworkError) {
       const networkError = new Error(
         `Network error: Unable to connect to ${url}. ` +
@@ -103,7 +103,7 @@ async function fetchWithTimeout(
       });
       throw networkError;
     }
-    
+
     // For any other error, wrap it with context
     const contextError = new Error(
       `Request failed: ${errorMessage} (${options.method || 'GET'} ${url})`
@@ -128,7 +128,7 @@ export async function queryAgent(request: AgentQueryRequest): Promise<AgentQuery
         queryLength: request.query.length,
         userId: request.user_id,
       });
-      
+
       const response = await fetchWithTimeout(
         `${API_BASE_URL}/agent/query`,
         {
@@ -196,7 +196,7 @@ export async function getAgentHealth(): Promise<ServiceHealth> {
     // Parse response to verify it's valid JSON
     const data = await response.json();
     console.log('Agent health check successful:', data);
-    
+
     return {
       name: 'Agent Service',
       status: 'healthy',
@@ -303,21 +303,22 @@ export async function getLangSmithTraces(limit: number = 10): Promise<LangSmithT
     const data = await response.json();
     const runs = data.runs || [];
 
-    return runs.map((run: any) => ({
-      runId: run.id || '',
-      name: run.name || 'Unknown',
-      runType: (run.run_type || 'chain') as 'chain' | 'llm' | 'tool' | 'retriever',
-      startTime: run.start_time || new Date().toISOString(),
-      endTime: run.end_time || new Date().toISOString(),
-      latencyMs: run.total_tokens ? 0 : (run.latency_ms || 0),
-      tokenUsage: run.total_tokens ? {
-        prompt: run.prompt_tokens || 0,
-        completion: run.completion_tokens || 0,
-        total: run.total_tokens || 0,
-      } : undefined,
-      status: run.status === 'error' ? 'error' : 'success',
-      parentRunId: run.parent_run_id,
-    }));
+    return runs.map(      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (run: any) => ({
+        runId: run.id || '',
+        name: run.name || 'Unknown',
+        runType: (run.run_type || 'chain') as 'chain' | 'llm' | 'tool' | 'retriever',
+        startTime: run.start_time || new Date().toISOString(),
+        endTime: run.end_time || new Date().toISOString(),
+        latencyMs: run.total_tokens ? 0 : (run.latency_ms || 0),
+        tokenUsage: run.total_tokens ? {
+          prompt: run.prompt_tokens || 0,
+          completion: run.completion_tokens || 0,
+          total: run.total_tokens || 0,
+        } : undefined,
+        status: run.status === 'error' ? 'error' : 'success',
+        parentRunId: run.parent_run_id,
+      }));
   } catch (error) {
     console.warn('Error fetching LangSmith traces:', error);
     return [];
@@ -338,7 +339,7 @@ export async function getSessions(userId: string): Promise<SessionListResponse> 
         {},
         HEALTH_CHECK_TIMEOUT
       );
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
         const error = new Error(
@@ -352,7 +353,7 @@ export async function getSessions(userId: string): Promise<SessionListResponse> 
         });
         throw error;
       }
-      
+
       const data = await response.json();
       console.log('[getSessions] Success:', { userId, sessionCount: data.sessions?.length || 0 });
       return data;
@@ -388,9 +389,9 @@ export async function createSession(userId: string, metadata?: Partial<SessionCr
         user_id: userId,
         ...metadata,
       };
-      
+
       console.log('[createSession] Creating session:', { userId, metadata });
-      
+
       const response = await fetchWithTimeout(
         `${API_BASE_URL}/session/create`,
         {
@@ -402,7 +403,7 @@ export async function createSession(userId: string, metadata?: Partial<SessionCr
         },
         HEALTH_CHECK_TIMEOUT
       );
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => response.statusText);
         let errorData;
@@ -411,13 +412,13 @@ export async function createSession(userId: string, metadata?: Partial<SessionCr
         } catch {
           errorData = { detail: errorText };
         }
-        
+
         if (errorData.code === 'SESSION_LIMIT_EXCEEDED' || errorData.detail?.code === 'SESSION_LIMIT_EXCEEDED') {
           const limitError = new Error('SESSION_LIMIT_EXCEEDED');
           console.error('[createSession] Session limit exceeded:', { userId });
           throw limitError;
         }
-        
+
         const error = new Error(
           `Failed to create session: ${response.status} ${response.statusText}. ${errorData.detail || errorText}`
         );
@@ -429,7 +430,7 @@ export async function createSession(userId: string, metadata?: Partial<SessionCr
         });
         throw error;
       }
-      
+
       const data = await response.json();
       console.log('[createSession] Success:', { sessionId: data.session_id, userId });
       return data;
@@ -493,7 +494,8 @@ export async function deleteSession(sessionId: string): Promise<void> {
   });
 }
 
-export async function getSessionMessages(sessionId: string, limit: number = 50, offset: number = 0): Promise<any[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getSessionMessages(sessionId: string, limit: number = 50): Promise<any[]> {
   return retryWithBackoff(async () => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/session/${sessionId}?limit=${limit}`,

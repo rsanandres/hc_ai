@@ -1,4 +1,4 @@
-// Agent API Types (matches backend POC_agent/agent/models.py)
+// Agent API Types (matches backend api/agent/models.py)
 export interface AgentDocument {
   doc_id: string;
   content_preview: string;
@@ -98,5 +98,6 @@ export interface SessionCountResponse {
 
 export interface StreamEvent {
   type: 'tool_call' | 'researcher_output' | 'validator_output' | 'final_response';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }

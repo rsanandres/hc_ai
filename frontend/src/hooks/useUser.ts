@@ -39,7 +39,7 @@ function generateBrowserFingerprint(): string {
 
   // Combine all components and create a hash-like string
   const combined = components.join('|');
-  
+
   // Simple hash function (not cryptographic, just for consistency)
   let hash = 0;
   for (let i = 0; i < combined.length; i++) {
@@ -47,7 +47,7 @@ function generateBrowserFingerprint(): string {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
-  
+
   // Convert to positive hex string
   return Math.abs(hash).toString(16).padStart(8, '0');
 }
@@ -58,11 +58,36 @@ export function useUser() {
 
   useEffect(() => {
     // Mark as client-side only
-    setIsClient(true);
-    // Generate fingerprint on mount (client-side only)
+    if (!isClient) {
+      setIsClient(true);
+    }
+
+    // Check localStorage first
+    const storedId = localStorage.getItem('atlas_user_device_id');
+    if (storedId) {
+      setUserId(storedId);
+    } else {
+      // Generate fingerprint and save it
+      const fingerprint = generateBrowserFingerprint();
+      localStorage.setItem('atlas_user_device_id', fingerprint);
+      setUserId(fingerprint);
+    }
+  }, [isClient]);
+
+  const login = (newUserId: string) => {
+    localStorage.setItem('atlas_user_device_id', newUserId);
+    setUserId(newUserId);
+    // Force reload to refresh sessions with new ID
+    window.location.reload();
+  };
+
+  const logout = () => {
+    localStorage.removeItem('atlas_user_device_id');
     const fingerprint = generateBrowserFingerprint();
     setUserId(fingerprint);
-  }, []);
+    // Force reload to refresh sessions
+    window.location.reload();
+  };
 
-  return { userId, isClient };
+  return { userId, isClient, login, logout };
 }

@@ -35,18 +35,7 @@ class LocalPIIMasker(PIIMaskerInterface):
 
         return self._mask_with_regex(text)
 
-    def detect_pii(self, text: str) -> List[Dict]:
-        if not text:
-            return []
 
-        if self._deidentifier is not None:
-            try:
-                result = self._deidentifier.detect(text)
-                return self._entities_from_detect(result)
-            except Exception:
-                return self._detect_with_regex(text)
-
-        return self._detect_with_regex(text)
 
     @staticmethod
     def _extract_text(result: object, default: str) -> str:
