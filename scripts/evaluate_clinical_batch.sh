@@ -12,7 +12,9 @@ else
     OUTPUT_DIR="$BATCH_OUTPUT_DIR"
 fi
 
-MAX_QUESTIONS=30  # Adjust based on your testset size
+# Range configuration (defaults to full set 0-30)
+START_INDEX=${START_INDEX:-0}
+END_INDEX=${END_INDEX:-30}
 
 echo "Starting Batch Evaluation..."
 echo "Output Directory: $OUTPUT_DIR"
@@ -20,11 +22,13 @@ mkdir -p "$OUTPUT_DIR"
 
 if [ -f "$PROJECT_ROOT/.venv/bin/python" ]; then
     PYTHON_CMD="$PROJECT_ROOT/.venv/bin/python"
+    echo "Using venv python: $PYTHON_CMD"
 else
     PYTHON_CMD="python3"
+    echo "Using system python: $PYTHON_CMD"
 fi
 
-for ((i=0; i<MAX_QUESTIONS; i++)); do
+for ((i=START_INDEX; i<END_INDEX; i++)); do
     # Resume check: Skip if result already exists
     RESULT_FILE="$OUTPUT_DIR/result_$(printf "%03d" $i).json"
     if [ -f "$RESULT_FILE" ]; then
