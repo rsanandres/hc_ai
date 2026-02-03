@@ -47,21 +47,29 @@ async def lookup_loinc(code: str) -> Dict[str, Any]:
 
     payload = response.json()
     # Response format may vary - handle both array and object responses
-    if isinstance(payload, list):
-        if not payload:
-            return LOINCResponse(
-                success=False,
-                error="code not found",
-                code=code,
-            ).model_dump()
-        # Use first result if multiple found
-        data = payload[0]
-    else:
-        data = payload
+    # Response format: {'ResponseSummary': ..., 'Results': [...]}
+    results = payload.get("Results", []) if isinstance(payload, dict) else payload
+    if not results or not isinstance(results, list):
+         return LOINCResponse(
+            success=False,
+            error="code not found or unexpected format",
+            code=code,
+        ).model_dump()
+        
+    data = results[0]
     
+    name = data.get("LONG_COMMON_NAME", data.get("COMPONENT", ""))
+    if not name:
+        # Debugging: if name is missing, return success=False with raw keys to debug
+        return LOINCResponse(
+            success=False,
+            error=f"Schema mismatch. Available keys: {list(data.keys())}",
+            code=code,
+        ).model_dump()
+
     return LOINCResponse(
         code=data.get("LOINC_NUM", code),
-        name=data.get("LONG_COMMON_NAME", data.get("COMPONENT", "")),
+        name=name,
         component=data.get("COMPONENT", ""),
         system=data.get("SYSTEM", ""),
     ).model_dump()

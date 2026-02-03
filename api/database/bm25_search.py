@@ -49,18 +49,30 @@ async def bm25_search(
         return []
     
     # Build the base query with ts_rank for BM25-style scoring
-    # plainto_tsquery handles natural language queries
+    # Use to_tsquery with OR logic (|) for better recall on natural language queries
+    # plainto_tsquery uses AND logic which fails for long questions
+    
+    # Simple keyword extraction (split by space, filter small words)
+    # in a real app query parsing would be more robust
+    keywords = [w for w in query.replace('?', '').replace('.', '').split() if len(w) > 2]
+    if not keywords:
+        ts_query_func = "plainto_tsquery"
+        query_param = query
+    else:
+        ts_query_func = "to_tsquery"
+        query_param = " | ".join(keywords)
+
     base_sql = f"""
         SELECT 
             langchain_id,
             content,
             langchain_metadata,
-            ts_rank(ts_content, plainto_tsquery('english', :query)) as rank
+            ts_rank(ts_content, {ts_query_func}('english', :query)) as rank
         FROM "{SCHEMA_NAME}"."{TABLE_NAME}"
-        WHERE ts_content @@ plainto_tsquery('english', :query)
+        WHERE ts_content @@ {ts_query_func}('english', :query)
     """
     
-    params: Dict[str, Any] = {"query": query, "k": k}
+    params: Dict[str, Any] = {"query": query_param, "k": k}
     
     # Add metadata filters if provided
     where_clauses = []

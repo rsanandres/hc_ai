@@ -9465,3 +9465,119 @@ INFO:httpx:HTTP Request: POST http://100.91.76.71:11434/api/chat "HTTP/1.1 200 O
 INFO:api.access:Response: 200 in 48.0536s
 Warning: Failed to store session turn: Float types are not supported. Use Decimal types instead.
 INFO:     127.0.0.1:55040 - "POST /agent/query HTTP/1.1" 200 OK
+2026-02-02 20:46:32,173 - api.access - INFO - Request: POST /retrieval/rerank/with-context
+INFO:api.access:Request: POST /retrieval/rerank/with-context
+2026-02-02 20:46:32,175 - api.access - INFO - Body: {
+  "query": "hypertension",
+  "k_retrieve": 40,
+  "k_return": 10,
+  "include_full_json": true
+}
+INFO:api.access:Body: {
+  "query": "hypertension",
+  "k_retrieve": 40,
+  "k_return": 10,
+  "include_full_json": true
+}
+Batches:   0%|          | 0/2 [00:00<?, ?it/s]Batches:  50%|█████     | 1/2 [00:00<00:00,  1.86it/s]Batches: 100%|██████████| 2/2 [00:00<00:00,  3.20it/s]Batches: 100%|██████████| 2/2 [00:00<00:00,  2.89it/s]
+ERROR:asyncio:Task was destroyed but it is pending!
+task: <Task pending name='Task-14450' coro=<queue_worker() running at /Users/raph/Documents/hc_ai/api/database/postgres.py:727> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-02-02 20:46:38,771 - api.access - INFO - Response: 200 in 6.5980s
+INFO:api.access:Response: 200 in 6.5980s
+INFO:     127.0.0.1:61937 - "POST /retrieval/rerank/with-context HTTP/1.1" 200 OK
+2026-02-02 20:46:50,686 - api.access - INFO - Request: POST /retrieval/rerank
+INFO:api.access:Request: POST /retrieval/rerank
+2026-02-02 20:46:50,686 - api.access - INFO - Body: {
+  "query": "chest pain",
+  "k_retrieve": 10,
+  "k_return": 5,
+  "filter_metadata": null
+}
+INFO:api.access:Body: {
+  "query": "chest pain",
+  "k_retrieve": 10,
+  "k_return": 5,
+  "filter_metadata": null
+}
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.86it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.86it/s]
+2026-02-02 20:46:53,958 - api.access - INFO - Response: 200 in 3.2719s
+INFO:api.access:Response: 200 in 3.2719s
+INFO:     127.0.0.1:61951 - "POST /retrieval/rerank HTTP/1.1" 200 OK
+2026-02-02 20:47:00,102 - api.access - INFO - Request: POST /retrieval/rerank/with-context
+INFO:api.access:Request: POST /retrieval/rerank/with-context
+2026-02-02 20:47:00,102 - api.access - INFO - Body: {
+  "query": "chest pain and I25.1",
+  "k_retrieve": 40,
+  "k_return": 10,
+  "filter_metadata": {
+    "patient_id": "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8"
+  },
+  "include_full_json": true
+}
+INFO:api.access:Body: {
+  "query": "chest pain and I25.1",
+  "k_retrieve": 40,
+  "k_return": 10,
+  "filter_metadata": {
+    "patient_id": "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8"
+  },
+  "include_full_json": true
+}
+ERROR:asyncio:Task was destroyed but it is pending!
+task: <Task pending name='Task-14466' coro=<queue_worker() running at /Users/raph/Documents/hc_ai/api/database/postgres.py:727> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+Warning: Only found 2/50 results after filtering from 5000 candidates (patient_id=f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8)
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 19.79it/s]
+2026-02-02 20:47:04,914 - api.access - INFO - Response: 200 in 4.8120s
+INFO:api.access:Response: 200 in 4.8120s
+INFO:     127.0.0.1:61959 - "POST /retrieval/rerank/with-context HTTP/1.1" 200 OK
+2026-02-02 20:47:18,128 - api.access - INFO - Request: POST /retrieval/rerank
+INFO:api.access:Request: POST /retrieval/rerank
+2026-02-02 20:47:18,129 - api.access - INFO - Body: {
+  "query": "chest pain",
+  "k_retrieve": 10,
+  "k_return": 5,
+  "filter_metadata": {
+    "patient_id": "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8"
+  }
+}
+INFO:api.access:Body: {
+  "query": "chest pain",
+  "k_retrieve": 10,
+  "k_return": 5,
+  "filter_metadata": {
+    "patient_id": "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8"
+  }
+}
+ERROR:asyncio:Task was destroyed but it is pending!
+task: <Task pending name='Task-14339' coro=<queue_worker() running at /Users/raph/Documents/hc_ai/api/database/postgres.py:727> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+ERROR:asyncio:Task was destroyed but it is pending!
+task: <Task pending name='Task-14394' coro=<queue_worker() running at /Users/raph/Documents/hc_ai/api/database/postgres.py:727> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+ERROR:asyncio:Task was destroyed but it is pending!
+task: <Task pending name='Task-14479' coro=<queue_worker() running at /Users/raph/Documents/hc_ai/api/database/postgres.py:727> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+Warning: Only found 2/50 results after filtering from 5000 candidates (patient_id=f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8)
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 22.38it/s]
+2026-02-02 20:47:25,061 - api.access - INFO - Response: 200 in 6.9325s
+INFO:api.access:Response: 200 in 6.9325s
+INFO:     127.0.0.1:62000 - "POST /retrieval/rerank HTTP/1.1" 200 OK
+2026-02-02 20:47:34,471 - api.access - INFO - Request: POST /retrieval/rerank
+INFO:api.access:Request: POST /retrieval/rerank
+2026-02-02 20:47:34,472 - api.access - INFO - Body: {
+  "query": "chest pain",
+  "k_retrieve": 10,
+  "k_return": 5,
+  "filter_metadata": {
+    "patient_id": "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8"
+  }
+}
+INFO:api.access:Body: {
+  "query": "chest pain",
+  "k_retrieve": 10,
+  "k_return": 5,
+  "filter_metadata": {
+    "patient_id": "f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8"
+  }
+}
+2026-02-02 20:47:40,568 - api.access - INFO - Response: 200 in 6.0970s
+INFO:api.access:Response: 200 in 6.0970s
+Warning: Only found 2/50 results after filtering from 5000 candidates (patient_id=f1d2d1e2-4a03-43cb-8f06-f68c90e96cc8)
+INFO:     127.0.0.1:62064 - "POST /retrieval/rerank HTTP/1.1" 200 OK
