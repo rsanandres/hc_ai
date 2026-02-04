@@ -130,6 +130,34 @@ researcher:
       3. Report both inputs and outputs for validator verification
 
     ---
+    ## QUERY DECOMPOSITION FOR COMPREHENSIVE ANSWERS
+    ---
+
+    When user asks a BROAD clinical question, decompose into MULTIPLE tool calls:
+
+    PATTERN: "What are [Patient]'s conditions?" or "health status" or "medical history"
+    → DECOMPOSE INTO:
+      1. search_patient_records(query="Condition", patient_id=X, include_full_json=True)
+      2. search_patient_records(query="MedicationRequest", patient_id=X, include_full_json=True)
+      3. search_patient_records(query="Observation vital-signs", patient_id=X, k_chunks=5)
+
+    PATTERN: "Tell me about [Patient]'s diabetes/hypertension/[specific condition]"
+    → DECOMPOSE INTO:
+      1. search_patient_records(query="Condition [specific]", patient_id=X, include_full_json=True)
+      2. search_patient_records(query="MedicationRequest", patient_id=X) - for related medications
+      3. search_patient_records(query="Observation", patient_id=X, k_chunks=5) - for related labs/vitals
+
+    PATTERN: "What medications is [Patient] taking?"
+    → ALSO CONSIDER:
+      1. search_patient_records(query="MedicationRequest", patient_id=X, include_full_json=True)
+      2. cross_reference_meds() if multiple medications found - check for interactions
+
+    SINGLE QUERIES (no decomposition needed):
+    - "What is [Patient]'s weight?" → single Observation query
+    - "Does [Patient] have diabetes?" → single Condition query
+    - "When was [Patient]'s last visit?" → single Encounter query
+
+    ---
     ## QUERY CONSTRUCTION RULES
     ---
 
@@ -269,6 +297,36 @@ researcher:
 
     UNCERTAINTIES:
     [Areas needing validator review, missing data, conflicting sources]
+
+    ---
+    ## DATE EXTRACTION (CRITICAL)
+    ---
+
+    ALWAYS extract and include dates from FHIR resources when available:
+
+    For Conditions - look for these fields in the JSON:
+    - onsetDateTime: When condition started (e.g., "2018-03-15")
+    - recordedDate: When diagnosis was recorded
+    - abatementDateTime: When resolved (if applicable)
+
+    For Medications (MedicationRequest) - look for:
+    - authoredOn: When prescribed (e.g., "2020-01-10")
+    - status: active/completed/stopped/cancelled
+
+    For Observations - look for:
+    - effectiveDateTime: When measured (e.g., "2023-06-15T10:30:00")
+    - issued: When result was issued
+
+    For Procedures - look for:
+    - performedDateTime or performedPeriod.start
+
+    FORMAT IN YOUR FINDINGS:
+    - Condition: "Hypertension (SNOMED: 38341003), onset: 2018-03-15, status: active"
+    - Medication: "Metformin 500mg, prescribed: 2020-01-10, status: active"
+    - Observation: "Body Weight: 75.3 kg, measured: 2023-06-15"
+    - Procedure: "Colonoscopy, performed: 2022-08-20"
+
+    If a date field is missing/null in the FHIR data, simply omit it - don't say "unknown date".
 
     ---
     ## CRITICAL RULES
@@ -918,22 +976,49 @@ response:
     ## EXAMPLES
     ---
 
-    **Example 1 - Active Conditions**
-    Research findings contain: Condition resources with clinicalStatus="active",
-    codes like SNOMED:75498004 (Acute bacterial sinusitis), SNOMED:68496003 (Polyp of colon)
+    **Example 1 - Active Conditions WITH Dates**
+    Research findings: Condition resources with:
+    - code=SNOMED:75498004 (Acute bacterial sinusitis), onsetDateTime=2023-11-15, clinicalStatus=active
+    - code=SNOMED:68496003 (Polyp of colon), onsetDateTime=2022-08-20, clinicalStatus=active
 
     Output:
     This patient has 2 active conditions:
-    - Acute bacterial sinusitis (SNOMED: 75498004)
-    - Polyp of colon (SNOMED: 68496003)
+    - Acute bacterial sinusitis (SNOMED: 75498004) - onset November 2023
+    - Polyp of colon (SNOMED: 68496003) - onset August 2022
 
-    **Example 2 - Specific Value**
-    Research findings: Observation with code LOINC:29463-7, value 75.3 kg, date 2023-01-15
+    **Example 2 - Medications WITH Dates**
+    Research findings: MedicationRequest resources with:
+    - medicationCodeableConcept="Metformin 500mg", authoredOn=2020-01-10, status=active
+    - medicationCodeableConcept="Lisinopril 10mg", authoredOn=2018-03-15, status=active
 
     Output:
-    Body weight: 75.3 kg (measured 2023-01-15)
+    Current medications:
+    - Metformin 500mg - prescribed January 2020 (active)
+    - Lisinopril 10mg - prescribed March 2018 (active)
 
-    **Example 3 - No Data Found**
+    **Example 3 - Comprehensive Health Summary**
+    Research findings include Conditions, MedicationRequests, and Observations
+
+    Output:
+    **Active Conditions:**
+    - Type 2 Diabetes (ICD-10: E11.9) - onset 2015
+    - Hypertension (SNOMED: 38341003) - onset March 2018
+
+    **Current Medications:**
+    - Metformin 500mg twice daily - prescribed 2020
+    - Lisinopril 10mg daily - prescribed 2018
+
+    **Recent Vitals:**
+    - Blood Pressure: 128/82 mmHg (December 2023)
+    - Weight: 82.5 kg (December 2023)
+
+    **Example 4 - Specific Observation**
+    Research findings: Observation with code LOINC:29463-7, value 75.3 kg, effectiveDateTime=2023-01-15
+
+    Output:
+    Body weight: 75.3 kg (measured January 15, 2023)
+
+    **Example 5 - No Data Found**
     Research findings: Search returned 0 chunks for "MedicationRequest"
 
     Output:
