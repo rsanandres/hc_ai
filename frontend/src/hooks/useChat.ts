@@ -5,15 +5,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { Message } from '@/types';
 import { streamAgent, StreamEvent } from '@/services/streamAgent';
 import { useSessions } from './useSessions';
-import { useUser } from './useUser';
+// import { useUser } from './useUser'; // Not needed if we use userId from useSessions or passed in
 
 // Streaming state for real-time updates (debug mode)
 // Agent step for sequential display
 export interface AgentStep {
-  type: 'researcher' | 'validator' | 'response';
+  type: 'researcher' | 'validator' | 'response' | 'tool_result';
   output: string;
   iteration: number;
   result?: string; // For validator (APPROVED/REVISION_NEEDED)
+  toolName?: string; // For tool_result
 }
 
 // Streaming state for real-time updates (debug mode)
@@ -46,8 +47,15 @@ const initialStreamingState: StreamingState = {
 };
 
 export function useChat(sessionId?: string) {
-  const { userId } = useUser();
-  const { activeSessionId, loadSessionMessages, updateSession, createNewSession } = useSessions();
+  // const { userId } = useUser(); // Get userId from useSessions to avoid duplicate hooks if possible, or keep it
+  const {
+    activeSessionId,
+    loadSessionMessages,
+    updateSession,
+    createNewSession,
+    saveGuestMessage,
+    userId
+  } = useSessions();
   const effectiveSessionId = sessionId || activeSessionId;
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -120,13 +128,18 @@ export function useChat(sessionId?: string) {
 
   // Load messages when session changes
   useEffect(() => {
+    // Always clear current messages and reset state when session changes
+    console.log('[useChat] Session changed to:', effectiveSessionId);
+    setMessages([]);
+    setMessageCount(0);
+    resetStreamingState();
+
+    // Then load messages for the new session
     if (effectiveSessionId) {
       loadMessagesForSession(effectiveSessionId);
-    } else {
-      setMessages([]);
-      setMessageCount(0);
     }
-  }, [effectiveSessionId, loadMessagesForSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSessionId]); // Only depend on session ID, not the callback
 
   // Reset streaming state helper
   const resetStreamingState = useCallback(() => {
@@ -195,6 +208,17 @@ export function useChat(sessionId?: string) {
       timestamp: new Date(),
     };
 
+
+
+    // Save user message for guests immediately
+    if (sessionToUse) {
+      saveGuestMessage(sessionToUse, {
+        role: 'user',
+        text: content.trim(),
+        turn_ts: new Date().toISOString(),
+      });
+    }
+
     // Add user message and loading placeholder
     const loadingMessageId = uuidv4();
     const loadingMessage: Message = {
@@ -233,6 +257,13 @@ export function useChat(sessionId?: string) {
             setStreamingState(prev => ({
               ...prev,
               toolCalls: streamingToolsRef.current,
+            }));
+          },
+          onToolResult: (toolName, output) => {
+            console.log('[useChat] onToolResult:', { toolName, outputLength: output.length });
+            setStreamingState(prev => ({
+              ...prev,
+              steps: [...prev.steps, { type: 'tool_result', output, iteration: 0, toolName }],
             }));
           },
           onResearcherOutput: (output, iteration) => {
@@ -287,6 +318,22 @@ export function useChat(sessionId?: string) {
 
             setIsLoading(false);
             abortControllerRef.current = null;
+
+            // Save assistant message for guests
+            if (sessionToUse) {
+              saveGuestMessage(sessionToUse, {
+                role: 'assistant',
+                text: assistantMessage.content,
+                turn_ts: new Date().toISOString(),
+                meta: {
+                  tool_calls: data.tool_calls,
+                  sources: data.sources,
+                  researcher_output: data.researcher_output,
+                  validator_output: data.validator_output,
+                  validation_result: data.validation_result,
+                }
+              });
+            }
 
             // Auto-update session name from first message if session has no name
             if (messageCount === 0 && sessionToUse) {

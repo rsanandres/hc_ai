@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Stream event types from backend
 export interface StreamEvent {
-    type: 'start' | 'status' | 'tool' | 'researcher_output' | 'validator_output' | 'response_output' | 'complete' | 'error';
+    type: 'start' | 'status' | 'tool' | 'tool_result' | 'researcher_output' | 'validator_output' | 'response_output' | 'complete' | 'error';
     message?: string;
     tool?: string;
     output?: string; // For researcher_output and validator_output
@@ -25,6 +25,7 @@ export interface StreamEvent {
 export interface StreamCallbacks {
     onStatus?: (message: string) => void;
     onTool?: (toolName: string) => void;
+    onToolResult?: (toolName: string, output: string) => void;
     onResearcherOutput?: (output: string, iteration: number) => void;
     onValidatorOutput?: (output: string, result: string | undefined, iteration: number) => void;
     onResponseOutput?: (output: string, iteration: number) => void;
@@ -42,7 +43,7 @@ export async function streamAgent(
     signal?: AbortSignal
 ): Promise<void> {
     const internalController = new AbortController();
-    const timeout = setTimeout(() => internalController.abort(), 300000); // 5 min timeout
+    const timeout = setTimeout(() => internalController.abort(), 1800000); // 30 min timeout
 
     // Handle external abort
     if (signal) {
@@ -99,6 +100,9 @@ export async function streamAgent(
                             break;
                         case 'tool':
                             callbacks.onTool?.(data.tool || '');
+                            break;
+                        case 'tool_result':
+                            callbacks.onToolResult?.(data.tool || '', data.output || '');
                             break;
                         case 'researcher_output':
                             callbacks.onResearcherOutput?.(data.output || '', data.iteration || 1);

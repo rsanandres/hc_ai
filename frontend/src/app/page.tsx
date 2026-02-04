@@ -6,22 +6,18 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { WorkflowPanel } from '@/components/workflow/WorkflowPanel';
 import { ObservabilityPanel } from '@/components/observability/ObservabilityPanel';
 import { ConnectModal } from '@/components/lead-capture/ConnectModal';
-import { SessionSidebar } from '@/components/session/SessionSidebar';
 import { useChat } from '@/hooks/useChat';
 import { useWorkflow } from '@/hooks/useWorkflow';
 import { IconButton, Tooltip, alpha, Box } from '@mui/material';
-import { Menu, User } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useObservability } from '@/hooks/useObservability';
 import { useLeadCapture } from '@/hooks/useLeadCapture';
 import { useSessions } from '@/hooks/useSessions';
 import { getMockCostBreakdown } from '@/services/mockData';
-import { LoginModal } from '@/components/auth/LoginModal';
 
 export default function Home() {
-  const { switchSession, login, userId } = useSessions();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const { messages, isLoading, error, sendMessage, stopGeneration, clearChat, getLastResponse, messageCount, streamingState } = useChat();
+  const { activeSessionId } = useSessions();
+  const { messages, isLoading, error, sendMessage, stopGeneration, clearChat, getLastResponse, messageCount, streamingState } = useChat(activeSessionId);
   const { pipeline, lastToolCalls, isProcessing, startProcessing, updateFromResponse } = useWorkflow();
   const {
     serviceHealth,
@@ -58,18 +54,10 @@ export default function Home() {
   const lastUserMessage = messages.filter(m => m.role === 'user').pop();
   const displayQuery = lastUserMessage?.content || lastQuery;
 
-  const handleSessionSelect = (sessionId: string) => {
-    switchSession(sessionId);
-    setSidebarOpen(false);
-  };
+
 
   return (
     <>
-      <SessionSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onSessionSelect={handleSessionSelect}
-      />
       <MainLayout
         chatPanel={
           <ChatPanel
@@ -80,7 +68,7 @@ export default function Home() {
             onStop={stopGeneration}
             onClear={clearChat}
             streamingState={streamingState}
-            externalInput={chatInput} // Pass input state
+            externalInput={chatInput}
           />
         }
         workflowPanel={
@@ -90,7 +78,7 @@ export default function Home() {
             lastResponse={getLastResponse()}
             isProcessing={isProcessing}
             lastQuery={displayQuery}
-            onPromptSelect={setChatInput} // Pass setter
+            onPromptSelect={setChatInput}
           />
         }
         observabilityPanel={
@@ -105,61 +93,9 @@ export default function Home() {
             isLoading={obsLoading}
           />
         }
-        leftActionBar={
-          <>
-            <Tooltip title="Sessions" arrow placement="right">
-              <IconButton
-                onClick={() => setSidebarOpen(true)}
-                sx={{
-                  color: 'text.secondary',
-                  width: 40,
-                  height: 40,
-                  borderRadius: '12px',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    color: 'primary.main',
-                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                    transform: 'scale(1.05)',
-                  },
-                }}
-              >
-                <Menu size={20} strokeWidth={2} />
-              </IconButton>
-            </Tooltip>
-          </>
-        }
       />
 
-      {/* Top Right User Profile Button */}
-      <Box sx={{ position: 'fixed', top: 16, right: 16, zIndex: 1200 }}>
-        <Tooltip title={userId ? `Signed in as: ${userId}` : "Switch User / Login"}>
-          <IconButton
-            onClick={() => setLoginModalOpen(true)}
-            sx={{
-              bgcolor: (theme) => alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: 'blur(8px)',
-              border: '1px solid',
-              borderColor: 'divider',
-              boxShadow: 2,
-              width: 44,
-              height: 44,
-              '&:hover': {
-                bgcolor: 'background.paper',
-                transform: 'scale(1.05)',
-              },
-            }}
-          >
-            <User size={20} />
-          </IconButton>
-        </Tooltip>
-      </Box>
 
-      <LoginModal
-        open={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
-        onLogin={login}
-        currentUserId={userId || ''}
-      />
 
       <ConnectModal
         open={leadOpen}

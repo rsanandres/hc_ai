@@ -37,8 +37,10 @@ from api.embeddings import router as embeddings_router
 from api.retrieval import router as retrieval_router
 from api.session import router as session_router
 from api.database import router as database_router
+from api.auth.router import router as auth_router  # NEW
 
 # Mount routers
+app.include_router(auth_router, prefix="/auth", tags=["authentication"])  # NEW - mount first for /docs
 app.include_router(agent_router, prefix="/agent", tags=["agent"])
 app.include_router(embeddings_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(retrieval_router, prefix="/retrieval", tags=["retrieval"])
@@ -100,6 +102,7 @@ async def root():
         "message": "HC AI Unified API",
         "version": "1.0.0",
         "endpoints": {
+            "auth": "/auth/*",  # NEW
             "agent": "/agent/*",
             "embeddings": "/embeddings/*",
             "retrieval": "/retrieval/*",

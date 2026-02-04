@@ -7,10 +7,9 @@ interface MainLayoutProps {
   chatPanel: React.ReactNode;
   workflowPanel: React.ReactNode;
   observabilityPanel: React.ReactNode;
-  leftActionBar?: React.ReactNode;
 }
 
-export function MainLayout({ chatPanel, workflowPanel, observabilityPanel, leftActionBar }: MainLayoutProps) {
+export function MainLayout({ chatPanel, workflowPanel, observabilityPanel }: MainLayoutProps) {
   return (
     <Box
       sx={{
@@ -59,25 +58,6 @@ export function MainLayout({ chatPanel, workflowPanel, observabilityPanel, leftA
           gap: 2,
         }}
       >
-        {/* Left Action Bar (Fixed, persistent) */}
-        <Box
-          sx={{
-            flex: '0 0 56px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            py: 2,
-            gap: 2,
-            bgcolor: (theme) => alpha(theme.palette.background.paper, 0.5),
-            backdropFilter: 'blur(20px)',
-            borderRadius: '16px',
-            border: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          {leftActionBar}
-        </Box>
-
         {/* Left side - Chat (Flex fill) */}
         <motion.div
           style={{ flex: 1, height: '100%', minWidth: 0 }}
@@ -88,7 +68,7 @@ export function MainLayout({ chatPanel, workflowPanel, observabilityPanel, leftA
           {chatPanel}
         </motion.div>
 
-        {/* Right side - Stacked panels (35%) */}
+        {/* Right side - Stacked panels (32%) */}
         <Box
           sx={{
             flex: '0 0 32%',

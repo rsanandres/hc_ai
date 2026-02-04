@@ -173,32 +173,74 @@ def _clean_response(text: str) -> str:
     
     return text.strip()
 
-def _load_conversation_history(session_id: str, limit: int = 10) -> List[Any]:
-    """Load recent conversation history from session store and convert to messages."""
+def _load_conversation_history(session_id: str, patient_id: Optional[str] = None, limit: int = 10) -> List[Any]:
+    """Load recent conversation history from session store and convert to messages.
+    
+    Args:
+        session_id: The session ID to load history from
+        patient_id: If provided, only include turns related to this patient
+        limit: Maximum number of turns to retrieve
+    
+    Returns:
+        List of HumanMessage/AIMessage for injection into agent context
+    """
+    print(f"[HISTORY] Attempting to load history for session: {session_id}, patient_id: {patient_id}, limit: {limit}")
+    
     if not SESSION_STORE_AVAILABLE:
+        print("[HISTORY] WARNING: Session store not available")
         return []
     
     try:
         store = get_session_store()
-        recent_turns = store.get_recent(session_id, limit=limit)
+        # Get more turns than needed since we'll filter
+        fetch_limit = limit * 3 if patient_id else limit
+        recent_turns = store.get_recent(session_id, limit=fetch_limit)
+        print(f"[HISTORY] Retrieved {len(recent_turns)} turns from DynamoDB")
+        
+        # Filter by patient_id if provided
+        if patient_id:
+            filtered_turns = [
+                turn for turn in recent_turns 
+                if turn.get("patient_id") == patient_id or turn.get("patient_id") is None
+            ]
+            print(f"[HISTORY] Filtered to {len(filtered_turns)} turns for patient: {patient_id}")
+        else:
+            filtered_turns = recent_turns
+        
+        # Limit after filtering
+        filtered_turns = filtered_turns[:limit]
         
         # Convert turns to messages (oldest first for chronological order)
         # get_recent returns newest first, so we reverse to get chronological
         history_messages: List[Any] = []
-        for turn in reversed(recent_turns):
+        for turn in reversed(filtered_turns):
             role = turn.get("role", "")
             text = turn.get("text", "")
+            turn_patient_id = turn.get("patient_id")
             if not text:
                 continue
             
+            # Add patient context label if patient_id is present
+            if turn_patient_id and patient_id and turn_patient_id == patient_id:
+                # Add subtle label for context
+                labeled_text = f"[Previous message about patient {turn_patient_id[:8]}...]\n{text}"
+            else:
+                labeled_text = text
+            
             if role == "user":
-                history_messages.append(HumanMessage(content=text))
+                history_messages.append(HumanMessage(content=labeled_text))
             elif role == "assistant":
-                history_messages.append(AIMessage(content=text))
+                history_messages.append(AIMessage(content=labeled_text))
         
+        print(f"[HISTORY] Converted to {len(history_messages)} messages for context")
+        if history_messages:
+            print(f"[HISTORY] First message preview: {str(history_messages[0].content)[:100]}...")
         return history_messages
-    except Exception:
-        # If session store is not available or fails, continue without history
+    except Exception as e:
+        # Log the error so we know what's happening
+        print(f"[HISTORY] ERROR loading history: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -211,10 +253,17 @@ async def _researcher_node(state: AgentState) -> AgentState:
     
     # Automatically inject conversation history if session_id is available
     session_id = state.get("session_id")
+    patient_id = state.get("patient_id")
+    print(f"[RESEARCHER] Session ID: {session_id}, Patient ID: {patient_id}")
     if session_id:
-        history_messages = _load_conversation_history(session_id, limit=10)
+        history_messages = _load_conversation_history(session_id, patient_id=patient_id, limit=10)
         if history_messages:
+            print(f"[RESEARCHER] ✓ Injecting {len(history_messages)} history messages into context")
             messages.extend(history_messages)
+        else:
+            print(f"[RESEARCHER] ⚠ No history found for session {session_id}")
+    else:
+        print("[RESEARCHER] ⚠ No session_id provided - skipping history load")
     
     # Add current query
     messages.append(HumanMessage(content=state["query"]))

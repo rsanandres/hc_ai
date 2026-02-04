@@ -1,0 +1,42 @@
+14:32:45 | INFO | Discovering patients needing embedding...
+14:32:46 | INFO | Found 8181 patients to embed
+14:32:46 | INFO | 
+════════════════════════════════════════════════════════════
+14:32:46 | INFO | BATCH 1/819 | Progress: 0/8181 | ETA: calculating...
+14:32:46 | INFO | ════════════════════════════════════════════════════════════
+14:33:14 | INFO |   ✓ 00128394...: 140 chunks
+14:33:27 | INFO |   ✓ 002321ec...: 60 chunks
+14:34:05 | INFO |   ✓ 00258a43...: 181 chunks
+14:34:26 | INFO |   ✓ 002ca05f...: 62 chunks
+14:34:29 | INFO |   ✓ 002d212f...: 12 chunks
+14:34:33 | INFO |   ✓ 003e90b4...: 21 chunks
+14:34:45 | INFO |   ✓ 0045c0cc...: 64 chunks
+14:35:00 | INFO |   ✓ 00527270...: 72 chunks
+14:35:17 | INFO |   ✓ 00565351...: 84 chunks
+14:35:17 | INFO |   ✓ 005fc874...: 1 chunks
+14:35:18 | INFO | 
+════════════════════════════════════════════════════════════
+14:35:18 | INFO | BATCH 2/819 | Progress: 10/8181 | ETA: 1 day, 10:36:35
+14:35:18 | INFO | ════════════════════════════════════════════════════════════
+14:35:18 | INFO |   ✓ 0066da51...: 1 chunks
+14:36:13 | WARNING |   API error for 2080e174-59b8-4681-9c60-9f1b71329c6a: [Errno 54] Connection reset by peer
+14:36:16 | INFO |   ✓ 006e32a0...: 158 chunks
+14:36:22 | INFO |   ✓ 0072c79a...: 29 chunks
+14:36:44 | INFO |   ✓ 007794db...: 100 chunks
+14:36:54 | INFO |   ✓ 007cdacb...: 58 chunks
+14:37:20 | INFO |   ✓ 008d6742...: 67 chunks
+14:37:26 | WARNING |   API error for da260f71-f654-437c-9ba2-5676247d74a7: [Errno 54] Connection reset by peer
+14:37:37 | INFO |   ✓ 00951564...: 57 chunks
+14:37:45 | INFO |   ✓ 0095fb71...: 39 chunks
+14:38:19 | INFO |   ✓ 00960805...: 168 chunks
+14:38:33 | INFO |   ✓ 00b6d4bd...: 70 chunks
+14:38:34 | INFO | 
+════════════════════════════════════════════════════════════
+14:38:34 | INFO | BATCH 3/819 | Progress: 20/8181 | ETA: 1 day, 15:30:26
+14:38:34 | INFO | ════════════════════════════════════════════════════════════
+14:39:14 | INFO |   ✓ 00c0cfac...: 196 chunks
+14:39:14 | INFO |   ✓ 00c2f57f...: 1 chunks
+14:39:19 | INFO |   ✓ 00c56c76...: 24 chunks
+14:39:20 | INFO |   ✓ 00c7816e...: 1 chunks
+14:39:31 | INFO |   ✓ 00c92d7c...: 54 chunks
+14:39:41 | INFO |   ✓ 00da59aa...: 51 chunks

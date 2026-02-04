@@ -1,60 +1,16 @@
-Can you create a comprehensive plan to apply to @api/agent/prompts.yaml  that can include the following:
-- When patient id is given, you can answer questions about that patient, no questions asked.
-- When multiple patient ids are given, you can answer questions about all those patients, no questions given.
-- They are not allowed to aggregrate from other patients, all patient info must be behind the id. 
-- You must PII scrub (if not already) per HIPAA guidelines
-- Provide all details about records if it exists.
+1. Lets rely on it.
+2. Let's work on this more, I want a plan in place before we proceed but lets add that tothings wee need to fix urgently.
+3. Lets rely on it.
+4. Lets change it, lets work on the tools to be better and cross examined. I want to double down on chanign this
 
-There are already tools that are there, and some literature if they think it is needed. I would say this is there if they need to know if there is something happening.
-- search and lookuip[ and validatingh codes are for the bot to understand what is happening, it is not needed to find every code. 
-- note what is an icdcode and wahat is a patient id. they look different. make sure that the codes for each of those are used properly before the query is made. 
-      if recommended, mayber i can add that to the functions to save time.
+24. Infer it.
+25. What do agents interpret better? What does the other models dp?
+26. Yes, make an example this way.
+27. A + B
+28. Yes.
 
-clinical calculations and fda and drug safety are there in case those are asked for., but shoudl be used only whne needed. considering taking it out if its not needed since i think it makes it confusing..
-utility functions can be kept, but considering adding an mcp to connect to the itnernet
-
-Patient questions can be multiple types:
-- list ____
-- summary of ___
-- did the patient get _____
-- timeline of evernts for these things___
-- I need to know everything about the patient _______
-- what do you recommend for my patient _____
-- what is the past tratements about _____
- stuff like that
-
-we can do basic acalculations, but the main questions will be around patients. I dont know how to make it priotize.
-CoT. Crossreference to understbda, not to see conflicting information (UNLESS DETECTED). 
-CoT, iim not sure it needs to do all that evrey query, its really restriucting
-
-confidences is better with just letting them tell us.
-
-Critical rules are solid, let me know if you think there should be ,roe/
-
-Few shot examples might need to calibartedm ket me know.
-
-Convesrational respponder looks good, i think that they are good as is.
-
-
---VALIDAOTR---
-
-I think that the validator is a bit strict. It needs to a validator to make sure that nothing inaccurate is too badly said. I think that would go for recommendations checking the icd drugs that are being said. I dont think it needs to be doing so much. Its also too strict. I tneed s to be something that is validatiing, not something  that is big. But I think the rules are somewhat okay.
-Citation spot check is a bit bad, i think that they would be good if the other agent said something wrong or they find something wrong in the first place/. Calculation does not need varification unless odne. I think the seveity thing is not really grteat, it just needs to be the high stuff that is goof. the otehr things are a bit weird.
-
-FDA might be excessive? I think that populatoion health is a bit excessive,. mind you we are making an rag agent SPECFICALLTY for looking into patient data and maybe some light recommendatiaons. it just needse to validate the response of teh researcher
-
-I think that the critical rules are abbit strict, maybe we rework it to be something more like a huidance rather than hard rules?
-
-IOm not so sure about the few shot examples,. lets talk about it.
-
-cONVERSATIONAL CONTENTE HADNLING shouldne bt for the validotor bot,
-
-I like the HIPAA but we can ASSUME that if you have the ID, you can get info about the emdical history of the patient//
-
-I kinda like the Json GHit but i dont think its the best. can we make it better? On
-
-I dont like the confidence scoring, i like having some sentence that is feasible/ I kinffa like the safety reminders, but lets talk about it. Citationformat is kinda nice, I want ot tell them to be able to do that. Patient context is kidna okay,
-
-Therse a lot to talk aboiut.
-
-I want you to plan and talk to me about the plans. Ask many many many qwuestuon.s I want to know your thoughts and bounce of fof each other until we find the right way to adjust it.
+29. Yes, I like it.
+30. Let's go with 1, 2, 3, 4, 5.
+31. "Professional and clinical, not warm/conversational" This is a place where accuracy is more imporatnt than being warm/conversational. Don't be mean though. Be a receptionist, with information. 
+32. I like it, is that how others do it?
+33. No changes yet, but lets do A for now afyer this. Let's keep planning.

@@ -40,5 +40,5 @@ $PYTHON_CMD "$PROJECT_ROOT/POC_RAGAS/scripts/run_evaluation.py" \
     --mode api \
     --patient-mode both \
     --output-id "$TIMESTAMP" \
-    --cooldown 30 \
+    --cooldown 45 \
     $ARGS

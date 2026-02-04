@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException
 
 import os
+from typing import Optional
 
 from api.session.store_dynamodb import SessionStore, get_session_store
 from api.session.models import (
@@ -118,9 +119,10 @@ def get_session_count(user_id: str) -> SessionCountResponse:
 def create_session(payload: SessionCreateRequest) -> SessionMetadata:
     """Create a new session."""
     store = _get_session_store()
+    user_id = payload.user_id  # Use user_id from payload
     
     # Check session limit
-    count = store.get_session_count(payload.user_id)
+    count = store.get_session_count(user_id)
     MAX_SESSIONS = int(os.getenv("MAX_SESSIONS_PER_USER", "50"))
     if count >= MAX_SESSIONS:
         raise HTTPException(
@@ -228,8 +230,13 @@ def update_session_metadata(session_id: str, payload: SessionUpdateRequest) -> S
 
 
 @router.get("/{session_id}", response_model=SessionTurnResponse)
-def get_session_state(session_id: str, limit: int = SESSION_RECENT_LIMIT) -> SessionTurnResponse:
+def get_session_state(
+    session_id: str,
+    limit: int = SESSION_RECENT_LIMIT,
+) -> SessionTurnResponse:
+    """Get session messages."""
     store = _get_session_store()
+    
     recent = store.get_recent(session_id, limit=limit)
     summary = store.get_summary(session_id)
     return SessionTurnResponse(session_id=session_id, recent_turns=recent, summary=summary)
