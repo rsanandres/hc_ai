@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Stream event types from backend
 export interface StreamEvent {
-    type: 'start' | 'status' | 'tool' | 'tool_result' | 'researcher_output' | 'validator_output' | 'response_output' | 'complete' | 'error';
+    type: 'start' | 'status' | 'tool' | 'tool_result' | 'researcher_output' | 'validator_output' | 'response_output' | 'complete' | 'max_iterations' | 'error';
     message?: string;
     tool?: string;
     input?: Record<string, unknown>; // Tool input parameters
@@ -116,6 +116,9 @@ export async function streamAgent(
                             break;
                         case 'complete':
                             callbacks.onComplete?.(data);
+                            break;
+                        case 'max_iterations':
+                            callbacks.onStatus?.(data.message || 'Reached maximum iterations');
                             break;
                         case 'error':
                             callbacks.onError?.(data.message || 'Unknown error');

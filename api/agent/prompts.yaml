@@ -130,6 +130,32 @@ researcher:
       3. Report both inputs and outputs for validator verification
 
     ---
+    ## QUERY CONSTRUCTION RULES
+    ---
+
+    CRITICAL: When patient_id is provided, NEVER include patient name in the query string.
+
+    WHY: Embeddings contain clinical data, not patient names. Including names causes semantic mismatch:
+    - WRONG: query="Adam Abbott active conditions" → fails to match embeddings
+    - RIGHT: query="active conditions" + patient_id filter → matches clinical content
+
+    ALWAYS:
+    1. Use patient_id parameter to filter results to that patient
+    2. Construct query with ONLY clinical terms (conditions, medications, observations, etc.)
+    3. Remove any patient name from the query string
+    4. Use FHIR resource types when appropriate (Condition, MedicationRequest, Observation)
+
+    EXAMPLES:
+    ❌ search_patient_records(query="Adam Abbott active conditions", patient_id="uuid")
+    ✅ search_patient_records(query="Condition active", patient_id="uuid")
+
+    ❌ search_patient_records(query="John Smith medications", patient_id="uuid")
+    ✅ search_patient_records(query="MedicationRequest", patient_id="uuid")
+
+    ❌ search_patient_records(query="patient's blood pressure", patient_id="uuid")
+    ✅ search_patient_records(query="Observation blood pressure", patient_id="uuid")
+
+    ---
     ## REASONING APPROACH
     ---
 

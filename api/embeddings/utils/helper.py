@@ -53,21 +53,23 @@ if EMBEDDING_PROVIDER == "nomic":
     except (ImportError, TypeError) as e:
         logger.warning(f"Could not import nomic API: {e}")
 
-# Amazon Bedrock Configuration (Future Migration)
-# TODO: Implement Bedrock embedding support
+# Amazon Bedrock Configuration
+# Set EMBEDDING_PROVIDER=bedrock to use AWS Bedrock for embeddings
 BEDROCK_REGION = os.getenv("AWS_REGION", "us-east-1")
-BEDROCK_MODEL_ID = os.getenv("BEDROCK_EMBED_MODEL", "amazon.titan-embed-text-v1")  # Example model
+# Using Titan v2 by default - produces 1024 dimensions (matches current Ollama setup)
+BEDROCK_MODEL_ID = os.getenv("BEDROCK_EMBED_MODEL", "amazon.titan-embed-text-v2:0")
 BEDROCK_AVAILABLE = False
 bedrock_runtime = None
 if EMBEDDING_PROVIDER == "bedrock":
     try:
         import boto3
-        # TODO: Initialize Bedrock client when implementing
-        # bedrock_runtime = boto3.client('bedrock-runtime', region_name=BEDROCK_REGION)
+        bedrock_runtime = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
         BEDROCK_AVAILABLE = True
-        logger.info(f"Bedrock embedding provider configured (not yet implemented)")
+        logger.info(f"Bedrock embedding provider initialized (region: {BEDROCK_REGION}, model: {BEDROCK_MODEL_ID})")
     except ImportError as e:
         logger.warning(f"Could not import boto3 for Bedrock: {e}")
+    except Exception as e:
+        logger.warning(f"Could not initialize Bedrock client: {e}")
 
 # Determine if embeddings are available
 EMBEDDINGS_AVAILABLE = USE_OLLAMA or NOMIC_API_AVAILABLE or BEDROCK_AVAILABLE
@@ -99,7 +101,10 @@ if EMBEDDING_PROVIDER == "ollama":
 elif EMBEDDING_PROVIDER == "bedrock":
     logger.info(f"  Region: {BEDROCK_REGION}")
     logger.info(f"  Model: {BEDROCK_MODEL_ID}")
-    logger.warning("  ⚠ Bedrock embeddings not yet implemented")
+    if BEDROCK_AVAILABLE:
+        logger.info("  ✓ Bedrock client initialized successfully")
+    else:
+        logger.warning("  ⚠ Bedrock client not available - check AWS credentials")
 elif EMBEDDING_PROVIDER == "nomic":
     logger.info("  Using Nomic API for embeddings")
 else:
@@ -562,39 +567,62 @@ def _get_embeddings_nomic(texts: list) -> list:
 
 def _get_embeddings_bedrock(texts: list) -> list:
     """
-    Get embeddings using Amazon Bedrock (Future - Production).
-    
-    TODO: Implement Bedrock embedding calls
-    TODO: Handle Bedrock-specific error cases
-    TODO: Implement batching if Bedrock supports it
-    
-    Expected Bedrock API format:
-    - Model: amazon.titan-embed-text-v1 or similar
-    - Input: text strings
-    - Output: embedding vectors
-    
+    Get embeddings using Amazon Bedrock.
+
+    Uses the Titan Embedding model by default (amazon.titan-embed-text-v2:0).
+    Titan v2 produces 1024-dimensional embeddings, matching the current Ollama setup.
+
+    Supported models and dimensions:
+    - amazon.titan-embed-text-v1: 1536 dimensions
+    - amazon.titan-embed-text-v2:0: 1024 dimensions (recommended)
+    - cohere.embed-english-v3: 1024 dimensions
+    - cohere.embed-multilingual-v3: 1024 dimensions
+
     Reference: https://docs.aws.amazon.com/bedrock/latest/userguide/embeddings.html
+
+    Args:
+        texts: List of text strings to embed
+
+    Returns:
+        List of embedding vectors, or None if error
     """
-    # TODO: Implement Bedrock embedding
-    logger.error("Bedrock embeddings not yet implemented")
-    return None
-    # Example implementation structure (uncomment and implement when ready):
-    # try:
-    #     embeddings = []
-    #     for text in texts:
-    #         body = json.dumps({"inputText": text})
-    #         response = bedrock_runtime.invoke_model(
-    #             modelId=BEDROCK_MODEL_ID,
-    #             body=body,
-    #             contentType="application/json",
-    #             accept="application/json"
-    #         )
-    #         result = json.loads(response['body'].read())
-    #         embeddings.append(result['embedding'])
-    #     return embeddings
-    # except Exception as e:
-    #     logger.error(f"Error calling Bedrock API: {e}")
-    #     return None
+    import json
+
+    if not BEDROCK_AVAILABLE or bedrock_runtime is None:
+        logger.error("Bedrock client not initialized. Check AWS credentials and region.")
+        return None
+
+    embeddings = []
+    for text in texts:
+        try:
+            # Titan embedding models expect {"inputText": "..."}
+            body = json.dumps({"inputText": text})
+
+            response = bedrock_runtime.invoke_model(
+                modelId=BEDROCK_MODEL_ID,
+                body=body,
+                contentType="application/json",
+                accept="application/json"
+            )
+
+            result = json.loads(response["body"].read())
+            embedding = result.get("embedding", [])
+
+            if embedding:
+                embeddings.append(embedding)
+            else:
+                logger.warning(f"Bedrock returned empty embedding for text: {text[:50]}...")
+                embeddings.append(None)
+
+        except Exception as e:
+            logger.error(f"Error calling Bedrock API: {e}")
+            embeddings.append(None)
+
+    # Return None if all embeddings failed
+    if all(e is None for e in embeddings):
+        return None
+
+    return embeddings
 
 
 def get_chunk_embedding(chunk_text: str):

@@ -3,11 +3,61 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 from typing import Any, Dict, Optional
 
 import httpx
 from langchain_core.tools import tool
+
+
+def strip_patient_name_from_query(query: str, patient_id: Optional[str] = None) -> str:
+    """Remove patient names from query when patient_id is provided.
+
+    Safeguard: Old embeddings don't contain patient names, so including them
+    in semantic search causes mismatches. Use patient_id filter instead.
+
+    Examples:
+        "Adam Abbott active conditions" → "active conditions"
+        "John Smith's medications" → "medications"
+        "Adam Abbott" → "Condition" (fallback when only name provided)
+        "what are the patient's conditions" → "what are the patient's conditions" (unchanged)
+    """
+    if not patient_id or not query:
+        return query
+
+    original_query = query.strip()
+    words = original_query.split()
+
+    # Pattern 1: Possessive form - "Adam Abbott's conditions" → "conditions"
+    possessive_match = re.match(r"^[A-Z][a-z]+\s+[A-Z][a-z]+['\u2019]s?\s+(.+)$", original_query)
+    if possessive_match:
+        return possessive_match.group(1).strip()
+
+    # Pattern 2: Query is ONLY a name (2 capitalized words, nothing else)
+    # "Adam Abbott" → fallback to generic FHIR resource search
+    if len(words) == 2:
+        first, second = words[0], words[1]
+        if (first[0].isupper() and first.isalpha() and len(first) > 1 and
+            second[0].isupper() and second.isalpha() and len(second) > 1):
+            # Query is just a name - return generic clinical query
+            # The patient_id filter will constrain to the right patient
+            return "Condition Observation MedicationRequest"
+
+    # Pattern 3: Two capitalized words at start followed by lowercase
+    # "Adam Abbott active conditions" → "active conditions"
+    if len(words) >= 3:
+        first, second, third = words[0], words[1], words[2]
+        # Check if first two words look like a name (both capitalized, alphabetic)
+        if (first and second and third and
+            first[0].isupper() and first.isalpha() and len(first) > 1 and
+            second[0].isupper() and second.isalpha() and len(second) > 1 and
+            not third[0].isupper()):  # Third word NOT capitalized confirms name pattern
+            cleaned = " ".join(words[2:]).strip()
+            if cleaned:
+                return cleaned
+
+    return original_query
 
 from api.database.postgres import search_similar_chunks
 from api.retrieval.cross_encoder import Reranker
@@ -71,6 +121,10 @@ async def search_patient_records(
                 success=False,
                 error=error_msg,
             ).model_dump()
+
+        # Strip patient name from query - names don't match old embeddings
+        query = strip_patient_name_from_query(query, patient_id)
+
         payload = {
             "query": query,
             "k_retrieve": max(k_chunks * 4, 20),
@@ -157,10 +211,14 @@ async def retrieve_patient_data(
                 success=False,
                 error=error_msg,
             ).model_dump()
+
+        # Strip patient name from query - names don't match old embeddings
+        query = strip_patient_name_from_query(query, patient_id)
+
         filter_metadata = {"patient_id": patient_id}
     else:
         filter_metadata = None
-    
+
     # Use hybrid search (BM25 + semantic) or semantic-only
     if use_hybrid:
         candidates = await hybrid_search(

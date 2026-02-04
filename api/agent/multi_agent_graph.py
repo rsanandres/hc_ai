@@ -248,7 +248,7 @@ def _load_conversation_history(session_id: str, patient_id: Optional[str] = None
 
 
 async def _researcher_node(state: AgentState) -> AgentState:
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
     system_prompt = get_researcher_prompt(state.get("patient_id"))
     
     # Build messages list with conversation history
@@ -428,7 +428,7 @@ async def _validator_node(state: AgentState) -> AgentState:
 
     # Calculate strictness tier in Python (more reliable than LLM)
     current_iter = state.get("iteration_count", 0)
-    max_iter = int(os.getenv("AGENT_MAX_ITERATIONS", "5"))
+    max_iter = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
     remaining = max_iter - current_iter
 
     if remaining > 2:
@@ -501,7 +501,7 @@ async def _validator_node(state: AgentState) -> AgentState:
 
 async def _respond_node(state: AgentState) -> AgentState:
     """Synthesize the researched information into a user-friendly response."""
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
     system_prompt = get_response_prompt() or get_conversational_prompt()
     
     # Get the research findings
@@ -621,7 +621,7 @@ def _route_after_validation(state: AgentState) -> str:
     """
     validation_result = state.get("validation_result", "NEEDS_REVISION")
     iteration_count = state.get("iteration_count", 0)
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "5"))
+    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
     
     # Conversational queries skip validation (safety check)
     if state.get("query_type") == "conversational":
