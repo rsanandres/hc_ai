@@ -9,6 +9,7 @@ export interface StreamEvent {
     type: 'start' | 'status' | 'tool' | 'tool_result' | 'researcher_output' | 'validator_output' | 'response_output' | 'complete' | 'error';
     message?: string;
     tool?: string;
+    input?: Record<string, unknown>; // Tool input parameters
     output?: string; // For researcher_output and validator_output
     result?: string; // For validator_output validation result
     iteration?: number; // Iteration number for sequential display
@@ -24,7 +25,7 @@ export interface StreamEvent {
 
 export interface StreamCallbacks {
     onStatus?: (message: string) => void;
-    onTool?: (toolName: string) => void;
+    onTool?: (toolName: string, input?: Record<string, unknown>) => void;
     onToolResult?: (toolName: string, output: string) => void;
     onResearcherOutput?: (output: string, iteration: number) => void;
     onValidatorOutput?: (output: string, result: string | undefined, iteration: number) => void;
@@ -99,7 +100,7 @@ export async function streamAgent(
                             callbacks.onStatus?.(data.message || '');
                             break;
                         case 'tool':
-                            callbacks.onTool?.(data.tool || '');
+                            callbacks.onTool?.(data.tool || '', data.input);
                             break;
                         case 'tool_result':
                             callbacks.onToolResult?.(data.tool || '', data.output || '');

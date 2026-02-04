@@ -10,11 +10,12 @@ import { useSessions } from './useSessions';
 // Streaming state for real-time updates (debug mode)
 // Agent step for sequential display
 export interface AgentStep {
-  type: 'researcher' | 'validator' | 'response' | 'tool_result';
+  type: 'researcher' | 'validator' | 'response' | 'tool_result' | 'tool_call';
   output: string;
   iteration: number;
   result?: string; // For validator (APPROVED/REVISION_NEEDED)
-  toolName?: string; // For tool_result
+  toolName?: string; // For tool_result and tool_call
+  toolInput?: Record<string, unknown>; // For tool_call input params
 }
 
 // Streaming state for real-time updates (debug mode)
@@ -251,12 +252,21 @@ export function useChat(sessionId?: string) {
             console.log('[useChat] onStatus:', message);
             setStreamingState(prev => ({ ...prev, currentStatus: message }));
           },
-          onTool: (toolName) => {
-            console.log('[useChat] onTool:', toolName);
+          onTool: (toolName, input) => {
+            console.log('[useChat] onTool:', toolName, input);
             streamingToolsRef.current = [...streamingToolsRef.current, toolName];
+            // Create a step showing the tool call with its input
+            const inputStr = input ? JSON.stringify(input, null, 2) : '';
             setStreamingState(prev => ({
               ...prev,
               toolCalls: streamingToolsRef.current,
+              steps: [...prev.steps, {
+                type: 'tool_call' as const,
+                output: inputStr,
+                iteration: 0,
+                toolName,
+                toolInput: input
+              }],
             }));
           },
           onToolResult: (toolName, output) => {

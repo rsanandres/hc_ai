@@ -219,8 +219,9 @@ async def query_agent_stream(payload: AgentQueryRequest):
                     elif event_type == "on_tool_start":
                         # Tool being called
                         tool_name = event_name or event_data.get("name", "unknown_tool")
+                        tool_input = event_data.get("input", {})
                         # print(f"[STREAM {request_id}] Tool starting: {tool_name}")
-                        yield f"data: {json.dumps({'type': 'tool', 'tool': tool_name})}\n\n"
+                        yield f"data: {json.dumps({'type': 'tool', 'tool': tool_name, 'input': tool_input})}\n\n"
                         yield f"data: {json.dumps({'type': 'status', 'message': f'🛠️ Using {tool_name}...'})}\n\n"
                     
                     elif event_type == "on_tool_end":
@@ -236,7 +237,7 @@ async def query_agent_stream(payload: AgentQueryRequest):
                         else:
                             output_preview = output_str
                         
-                        yield f"data: {json.dumps({'type': 'tool_result', 'tool': tool_name, 'output': output_preview})}\\n\\n"
+                        yield f"data: {json.dumps({'type': 'tool_result', 'tool': tool_name, 'output': output_preview})}\n\n"
                     
                     elif event_type == "on_chain_end":
                         # Node completed - capture outputs
@@ -254,7 +255,7 @@ async def query_agent_stream(payload: AgentQueryRequest):
                             # Emit intermediate outputs with iteration number for debug mode
                             # Only emit if this is the actual node (not wrapper chains like LangGraph)
                             if "researcher_output" in output and output["researcher_output"] and "researcher" in event_name.lower():
-                                yield f"data: {json.dumps({'type': 'researcher_output', 'output': output['researcher_output'], 'iteration': iteration_count})}\n\n"
+                                yield f"data: {json.dumps({'type': 'researcher_output', 'output': output['researcher_output'], 'iteration': iteration_count, 'search_attempts': output.get('search_attempts', []), 'empty_search_count': output.get('empty_search_count', 0)})}\n\n"
                             
                             if "validator_output" in output and output["validator_output"] and "validator" in event_name.lower():
                                 validation_result = output.get("validation_result", "")

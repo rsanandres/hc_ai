@@ -60,6 +60,9 @@ class AgentState(TypedDict, total=False):
     iteration_count: int
     tools_called: List[str]
     sources: List[Dict[str, Any]]
+    # Trajectory tracking for death loop prevention
+    search_attempts: List[Dict[str, Any]]  # [{query, patient_id, results_count, iteration}]
+    empty_search_count: int  # Count of consecutive empty searches
 
 
 _RESEARCHER_AGENT: Any = None
@@ -284,6 +287,32 @@ async def _researcher_node(state: AgentState) -> AgentState:
     if state.get("should_acknowledge_greeting", False):
         messages.append(SystemMessage(content="IMPORTANT: The user included a greeting (e.g., 'Hello'). Please explicitly acknowledge it warmly at the beginning of your response before addressing the clinical question."))
 
+    # Inject trajectory if in retry mode (death loop prevention)
+    search_attempts = state.get("search_attempts", [])
+    empty_count = state.get("empty_search_count", 0)
+    current_iteration = state.get("iteration_count", 0)
+    
+    if empty_count > 0:
+        failed_queries = [f"- '{a.get('query', 'unknown')}' → {a.get('results_count', 0)} results" 
+                          for a in search_attempts[-3:]]
+        messages.append(SystemMessage(content=f"""
+⚠️ RETRY MODE (Attempt {empty_count + 1})
+
+PREVIOUS FAILED QUERIES:
+{chr(10).join(failed_queries)}
+
+CONSTRAINT: Use DIFFERENT search terms. Broaden your query scope.
+If you cannot find data after this attempt, report: "I have searched for [Term A] and [Term B] but found no records."
+"""))
+    
+    # System-wide step limit check (fail gracefully before timeout)
+    if current_iteration >= 12:
+        messages.append(SystemMessage(content="""
+⚠️ APPROACHING STEP LIMIT - You must provide a response NOW.
+Report whatever you have found so far. If nothing was found, explicitly state that.
+Do NOT attempt additional searches.
+"""))
+
     agent = _get_researcher_agent()
     result = await agent.ainvoke({"messages": messages}, config={"recursion_limit": max_iterations})
     output_messages = result.get("messages", [])
@@ -302,12 +331,69 @@ async def _researcher_node(state: AgentState) -> AgentState:
     new_sources = _extract_sources(output_messages)
     all_sources = state.get("sources", []) + new_sources
     
+    # Track search attempts for trajectory (death loop prevention)
+    # We need to match AIMessage tool_calls with their corresponding ToolMessage results
+    search_attempts = list(state.get("search_attempts", []))  # Make a copy to avoid mutation
+    found_results_this_iteration = False
+    
+    # First, build a map of tool_call_id -> result_count from ToolMessages
+    tool_results: Dict[str, int] = {}
+    for message in output_messages:
+        if isinstance(message, ToolMessage):
+            tool_call_id = getattr(message, "tool_call_id", None)
+            if tool_call_id:
+                try:
+                    content_str = str(message.content)
+                    data = json.loads(content_str)
+                    if isinstance(data, dict):
+                        # Count chunks from the response
+                        chunks = data.get("chunks", [])
+                        count = data.get("count", len(chunks) if isinstance(chunks, list) else 0)
+                        tool_results[tool_call_id] = count
+                        if count > 0:
+                            found_results_this_iteration = True
+                except (json.JSONDecodeError, Exception):
+                    tool_results[tool_call_id] = 0
+    
+    # Now match tool_calls to their results
+    for message in output_messages:
+        if isinstance(message, AIMessage) and getattr(message, "tool_calls", None):
+            for call in message.tool_calls:
+                if call.get("name") == "search_patient_records":
+                    args = call.get("args", {})
+                    call_id = call.get("id", "")
+                    result_count = tool_results.get(call_id, 0)
+                    
+                    current_attempt = {
+                        "query": args.get("query", "unknown"),
+                        "patient_id": args.get("patient_id", "unknown"),
+                        "results_count": result_count,
+                        "iteration": state.get("iteration_count", 0) + 1
+                    }
+                    search_attempts.append(current_attempt)
+                    print(f"[TRAJECTORY] Tracked search: '{args.get('query', 'unknown')}' → {result_count} results")
+                    
+                    if result_count > 0:
+                        found_results_this_iteration = True
+    
+    # Track empty searches - only increment if NO searches returned results this iteration
+    empty_count = state.get("empty_search_count", 0)
+    if not found_results_this_iteration and len(tool_results) > 0:
+        # Only count as empty if we actually made searches but got nothing
+        empty_count += 1
+        print(f"[TRAJECTORY] Empty search count: {empty_count}")
+    elif found_results_this_iteration:
+        empty_count = 0  # Reset on success
+        print(f"[TRAJECTORY] Found results! Resetting empty count to 0")
+    
     return {
         **state,
         "researcher_output": response_text,
         "iteration_count": state.get("iteration_count", 0) + 1,
         "tools_called": tools_called,
         "sources": all_sources,
+        "search_attempts": search_attempts,
+        "empty_search_count": empty_count,
     }
 
 def _extract_sources(messages: List[Any]) -> List[Dict[str, Any]]:

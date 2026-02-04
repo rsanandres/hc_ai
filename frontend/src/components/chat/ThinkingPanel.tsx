@@ -23,6 +23,14 @@ export function ThinkingPanel({
     // Helper to get step styling
     const getStepStyle = (step: AgentStep) => {
         switch (step.type) {
+            case 'tool_call':
+                return {
+                    borderColor: '#2196f3',
+                    bgColor: alpha('#2196f3', 0.08),
+                    textColor: '#2196f3',
+                    icon: <Wrench size={12} />,
+                    label: `🔧 ${step.toolName || 'Tool'} Input`,
+                };
             case 'tool_result':
                 return {
                     borderColor: '#ff9800',
