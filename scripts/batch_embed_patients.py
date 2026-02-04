@@ -199,6 +199,39 @@ async def get_patient_fhir_data(patient_id: str) -> List[Dict[str, Any]]:
 # EMBEDDING PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+def extract_patient_name(bundle: Dict[str, Any]) -> str:
+    """
+    Extract patient name from FHIR bundle, cleaning Synthea-style numeric suffixes.
+    
+    Synthea generates names like "Abbott509" and "Adam618". This function strips
+    the numeric suffix to get clean names for semantic search.
+    
+    Args:
+        bundle: FHIR Bundle dictionary containing patient resources
+        
+    Returns:
+        Patient name like "Adam Abbott" or "Unknown Patient" if not found
+    """
+    for entry in bundle.get("entry", []):
+        resource = entry.get("resource", {})
+        if resource.get("resourceType") == "Patient":
+            names = resource.get("name", [])
+            if names:
+                name = names[0]
+                given_list = name.get("given", [])
+                given = given_list[0] if given_list else ""
+                family = name.get("family", "")
+                
+                # Clean Synthea suffixes: "Abbott509" → "Abbott", "Adam618" → "Adam"
+                given_clean = ''.join(c for c in given if not c.isdigit())
+                family_clean = ''.join(c for c in family if not c.isdigit())
+                
+                full_name = f"{given_clean} {family_clean}".strip()
+                if full_name:
+                    return full_name
+    return "Unknown Patient"
+
 async def embed_patient(patient_id: str, api_url: str, dry_run: bool = False) -> Tuple[bool, int, str]:
     """
     Embed a single patient's FHIR data.
@@ -221,6 +254,10 @@ async def embed_patient(patient_id: str, api_url: str, dry_run: bool = False) ->
             
             if not isinstance(bundle, dict):
                 continue
+            
+            # Extract patient name once per bundle for prefixing all resources
+            patient_name = extract_patient_name(bundle)
+            logger.debug(f"  Patient name: {patient_name}")
                 
             entries = bundle.get("entry", [])
             
@@ -233,9 +270,13 @@ async def embed_patient(patient_id: str, api_url: str, dry_run: bool = False) ->
                     continue
                 
                 # Build content for embedding
-                content = extract_content(resource, resource_type)
-                if not content or len(content.strip()) == 0:
+                raw_content = extract_content(resource, resource_type)
+                if not raw_content or len(raw_content.strip()) == 0:
                     continue
+                
+                # Prefix with patient name for semantic search
+                # This allows queries like "Adam Abbott blood pressure" to work
+                content = f"Patient: {patient_name}. {raw_content}"
                 
                 if dry_run:
                     chunks_embedded += 1
