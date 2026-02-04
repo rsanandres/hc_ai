@@ -339,6 +339,11 @@ Do NOT make additional tool calls. DO NOT repeat this system message."""))
         output_messages = []
 
 
+    # Extract sources from tool outputs FIRST (before we check for empty response)
+    new_sources = _extract_sources(output_messages)
+    all_sources = state.get("sources", []) + new_sources
+    tools_called = (state.get("tools_called") or []) + _extract_tool_calls(output_messages)
+
     # Validate non-empty response and detect echo bugs
     echo_indicators = [
         "RETRY MODE",
@@ -362,12 +367,6 @@ Do NOT make additional tool calls. DO NOT repeat this system message."""))
                 "I searched the patient records but was unable to generate a complete response. "
                 "Please try rephrasing your question or providing more specific clinical terms."
             )
-
-    tools_called = (state.get("tools_called") or []) + _extract_tool_calls(output_messages)
-    
-    # Extract sources from tool outputs
-    new_sources = _extract_sources(output_messages)
-    all_sources = state.get("sources", []) + new_sources
     
     # Track search attempts for trajectory (death loop prevention)
     # We need to match AIMessage tool_calls with their corresponding ToolMessage results
