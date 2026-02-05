@@ -143,50 +143,20 @@ export function ReferencePanel({ onCopy, onPromptSelect, selectedPatient, onPati
         carePlans: getCarePlans(selectedJson)
     } : null;
 
+    // Find selected patient data for collapsed view
+    const selectedPatientData = selectedPatient
+        ? PERSONAS.find(p => p.id === selectedPatient.id)
+        : null;
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 2, pb: 4 }}>
 
-            {/* Prompts Section (Moved to Top) */}
-            <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary', fontWeight: 600 }}>
-                    <MessageSquare size={16} />
-                    Recommended Prompts
-                </Typography>
-                <Stack spacing={1}>
-                    {RECOMMENDED_PROMPTS.map((prompt, i) => (
-                        <Button
-                            key={i}
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handlePromptClick(prompt)}
-                            sx={{
-                                justifyContent: 'flex-start',
-                                textAlign: 'left',
-                                textTransform: 'none',
-                                borderColor: 'divider',
-                                color: 'text.primary',
-                                py: 1,
-                                '&:hover': {
-                                    bgcolor: 'action.hover',
-                                    borderColor: 'primary.main'
-                                }
-                            }}
-                            endIcon={<Copy size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />}
-                        >
-                            {prompt}
-                        </Button>
-                    ))}
-                </Stack>
-            </Box>
-
-            <Divider />
-
-            {/* Personas Section */}
+            {/* Step 1: Patient Selection (collapsible when selected) */}
             <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                     <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary', fontWeight: 600 }}>
                         <User size={16} />
-                        {selectedPatient ? 'Selected Patient' : 'Select a Patient'}
+                        {selectedPatient ? 'Selected Patient' : 'Step 1: Select a Patient'}
                     </Typography>
                     {selectedPatient && onPatientSelect && (
                         <Button
@@ -195,19 +165,60 @@ export function ReferencePanel({ onCopy, onPromptSelect, selectedPatient, onPati
                             onClick={() => onPatientSelect(null)}
                             sx={{ fontSize: '0.7rem', minWidth: 'auto', p: 0.5 }}
                         >
-                            Clear
+                            Change
                         </Button>
                     )}
                 </Box>
-                {selectedPatient && (
-                    <Chip
-                        label={`Active: ${selectedPatient.name}`}
-                        color="primary"
-                        size="small"
-                        sx={{ mb: 1.5, fontWeight: 600 }}
-                    />
-                )}
-                <Stack spacing={2}>
+
+                {/* Collapsed view when patient is selected */}
+                {selectedPatient && selectedPatientData ? (
+                    <Card
+                        variant="outlined"
+                        sx={{
+                            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                            borderColor: 'primary.main',
+                            borderWidth: 2,
+                        }}
+                    >
+                        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Box
+                                    sx={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: '50%',
+                                        bgcolor: 'primary.main',
+                                        color: 'primary.contrastText',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {selectedPatient.name.charAt(0)}
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" fontWeight="bold">
+                                        {selectedPatient.name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {selectedPatientData.age} yrs • {selectedPatientData.conditions[0]}
+                                    </Typography>
+                                </Box>
+                                <Tooltip title="View patient data">
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => handleOpenModal(selectedPatientData.data)}
+                                    >
+                                        <FileText size={16} />
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    /* Full patient list when none selected */
+                    <Stack spacing={2}>
                     {PERSONAS.map((p) => {
                         const isSelected = selectedPatient?.id === p.id;
                         return (
@@ -350,8 +361,46 @@ export function ReferencePanel({ onCopy, onPromptSelect, selectedPatient, onPati
                         </Card>
                     );
                     })}
-                </Stack>
+                    </Stack>
+                )}
             </Box>
+
+            {/* Step 2: Recommended Prompts (only shown after patient selection) */}
+            {selectedPatient && (
+                <>
+                    <Divider />
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary', fontWeight: 600 }}>
+                            <MessageSquare size={16} />
+                            Step 2: Ask a Question
+                        </Typography>
+                        <Stack spacing={1}>
+                            {RECOMMENDED_PROMPTS.map((prompt, i) => (
+                                <Button
+                                    key={i}
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => handlePromptClick(prompt)}
+                                    sx={{
+                                        justifyContent: 'flex-start',
+                                        textAlign: 'left',
+                                        textTransform: 'none',
+                                        borderColor: 'divider',
+                                        color: 'text.primary',
+                                        py: 1,
+                                        '&:hover': {
+                                            bgcolor: 'action.hover',
+                                            borderColor: 'primary.main'
+                                        }
+                                    }}
+                                >
+                                    {prompt}
+                                </Button>
+                            ))}
+                        </Stack>
+                    </Box>
+                </>
+            )}
 
             {/* Patient Details Modal */}
             <Dialog
