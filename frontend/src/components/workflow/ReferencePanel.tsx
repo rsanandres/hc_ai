@@ -112,10 +112,6 @@ export function ReferencePanel({ onCopy, onPromptSelect, selectedPatient, onPati
     const [selectedJson, setSelectedJson] = useState<any>(null);
     const [sortOrder, setSortOrder] = useState<'default' | 'newest' | 'oldest'>('default');
 
-    // Prompt Selection State
-    const [promptDialogOpen, setPromptDialogOpen] = useState(false);
-    const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
-
     const handleCopy = (text: string, label: string) => {
         navigator.clipboard.writeText(text);
         onCopy(`Copied ${label}`);
@@ -123,32 +119,10 @@ export function ReferencePanel({ onCopy, onPromptSelect, selectedPatient, onPati
 
     const handlePromptClick = (prompt: string) => {
         if (onPromptSelect) {
-            setSelectedPrompt(prompt);
-            setPromptDialogOpen(true);
+            // Just insert the prompt directly - patient is already selected
+            onPromptSelect(prompt);
         } else {
             handleCopy(prompt, "Prompt");
-        }
-    };
-
-    const handlePatientSelectForPrompt = (patientName: string) => {
-        if (selectedPrompt && onPromptSelect) {
-            // Find patient to get ID
-            const patient = PERSONAS.find(p => p.name === patientName);
-            if (!patient) return;
-
-            // Replace "the patient" or "the patient's" with "Name's"
-            let finalPrompt = selectedPrompt.replace(/the patient's/gi, `${patientName}'s`);
-            finalPrompt = finalPrompt.replace(/the patient/gi, patientName);
-
-            // Append ID
-            finalPrompt += `? The patient ID is ${patient.id}`;
-
-            // Fix double question marks if they exist
-            finalPrompt = finalPrompt.replace(/\?\?/, '?');
-
-            onPromptSelect(finalPrompt);
-            setPromptDialogOpen(false);
-            setSelectedPrompt(null);
         }
     };
 
@@ -682,89 +656,6 @@ export function ReferencePanel({ onCopy, onPromptSelect, selectedPatient, onPati
                             />
                         </Box>
                     )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Prompt Patient Selection Dialog */}
-            <Dialog
-                open={promptDialogOpen}
-                onClose={() => setPromptDialogOpen(false)}
-                maxWidth="xs"
-                fullWidth
-                PaperProps={{
-                    sx: { borderRadius: 3 }
-                }}
-            >
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <User size={20} />
-                    Select Patient Context
-                </DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Who is this prompt regarding?
-                    </Typography>
-                    <List sx={{ pt: 0 }}>
-                        {PERSONAS.map((p) => (
-                            <ListItem
-                                key={p.id}
-                                disablePadding
-                                sx={{ mb: 1 }}
-                            >
-                                <CardActionArea
-                                    onClick={() => handlePatientSelectForPrompt(p.name)}
-                                    sx={{
-                                        borderRadius: 2,
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        p: 1
-                                    }}
-                                >
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1 }}>
-                                        <Box
-                                            sx={{
-                                                width: 32,
-                                                height: 32,
-                                                borderRadius: '50%',
-                                                bgcolor: 'primary.main',
-                                                color: 'primary.contrastText',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                fontWeight: 600,
-                                                fontSize: '0.85rem'
-                                            }}
-                                        >
-                                            {p.name.charAt(0)}
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="subtitle2" sx={{ lineHeight: 1.2 }}>
-                                                {p.name}
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {p.age} yrs • {p.conditions[0]}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                </CardActionArea>
-                            </ListItem>
-                        ))}
-
-                        <ListItem disablePadding sx={{ mt: 1 }}>
-                            <Button
-                                fullWidth
-                                variant="outlined"
-                                color="inherit"
-                                onClick={() => {
-                                    if (selectedPrompt && onPromptSelect) {
-                                        onPromptSelect(selectedPrompt); // No patient context
-                                        setPromptDialogOpen(false);
-                                    }
-                                }}
-                            >
-                                No Specific Patient
-                            </Button>
-                        </ListItem>
-                    </List>
                 </DialogContent>
             </Dialog>
         </Box>
