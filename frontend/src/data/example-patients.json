@@ -1,0 +1,63 @@
+[
+  {
+    "name": "Hailee Kovacek",
+    "patient_id": "616d0449-c98e-46bb-a1f6-0170499fd4e4",
+    "chunks": 375,
+    "resource_types": 13,
+    "note": "Richest data — allergies, conditions, meds, labs, procedures, etc."
+  },
+  {
+    "name": "Pauline Weber",
+    "patient_id": "0c23c2f2-bd77-4311-a576-7829d807f2e2",
+    "chunks": 356,
+    "resource_types": 13
+  },
+  {
+    "name": "Lela Tromp",
+    "patient_id": "a1d034a7-8e76-4b4c-806a-465bf66a0702",
+    "chunks": 334,
+    "resource_types": 13
+  },
+  {
+    "name": "Lurline Kub",
+    "patient_id": "5fce8d66-83df-4fd9-b293-76bb5a4f43c6",
+    "chunks": 321,
+    "resource_types": 13
+  },
+  {
+    "name": "Shane Metz",
+    "patient_id": "2021c4b5-f560-476f-88f2-8524aae95824",
+    "chunks": 310,
+    "resource_types": 13
+  },
+  {
+    "name": "Drew Rippin",
+    "patient_id": "887bdea7-43ce-4e17-b614-62b2be1b2c59",
+    "chunks": 302,
+    "resource_types": 13
+  },
+  {
+    "name": "Adelle Daniel",
+    "patient_id": "a045ffdb-c70e-47b3-8d4d-041ced44f281",
+    "chunks": 302,
+    "resource_types": 13
+  },
+  {
+    "name": "Corine Franecki",
+    "patient_id": "775775b6-95af-4049-8e23-9bc9a9e82252",
+    "chunks": 288,
+    "resource_types": 13
+  },
+  {
+    "name": "Erich Larson",
+    "patient_id": "89a8e44d-92c2-4539-83b2-755307a2e30f",
+    "chunks": 285,
+    "resource_types": 13
+  },
+  {
+    "name": "Liza Marvin",
+    "patient_id": "54d5c0ff-89de-4f65-b2a5-c5ecfaf450e8",
+    "chunks": 282,
+    "resource_types": 13
+  }
+]

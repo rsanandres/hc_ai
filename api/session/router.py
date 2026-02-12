@@ -11,7 +11,6 @@ from fastapi import APIRouter, HTTPException
 import os
 from typing import Optional
 
-from api.session.store_dynamodb import SessionStore, get_session_store
 from api.session.models import (
     SessionSummaryUpdate,
     SessionTurnRequest,
@@ -28,13 +27,20 @@ router = APIRouter()
 SESSION_RECENT_LIMIT = int(os.getenv("SESSION_RECENT_LIMIT", "10"))
 MAX_SESSIONS_PER_USER = int(os.getenv("MAX_SESSIONS_PER_USER", "20"))
 
+def _sessions_enabled() -> bool:
+    return os.getenv("ENABLE_SESSION_HISTORY", "true").lower() == "true"
 
-def _get_session_store() -> SessionStore:
+
+def _get_session_store():
+    from api.session.store_dynamodb import SessionStore, get_session_store
     return get_session_store()
 
 
 @router.post("/turn", response_model=SessionTurnResponse)
 def append_session_turn(payload: SessionTurnRequest) -> SessionTurnResponse:
+    if not _sessions_enabled():
+        return SessionTurnResponse(session_id=payload.session_id, recent_turns=[], summary={})
+
     store = _get_session_store()
     store.append_turn(
         session_id=payload.session_id,
@@ -77,6 +83,9 @@ def clear_session(session_id: str) -> Dict[str, str]:
 @router.get("/list", response_model=SessionListResponse)
 def list_sessions(user_id: str) -> SessionListResponse:
     """List all sessions for a user."""
+    if not _sessions_enabled():
+        return SessionListResponse(sessions=[], count=0)
+
     store = _get_session_store()
     sessions_data = store.list_sessions_by_user(user_id)
     
@@ -109,6 +118,9 @@ def list_sessions(user_id: str) -> SessionListResponse:
 @router.get("/count", response_model=SessionCountResponse)
 def get_session_count(user_id: str) -> SessionCountResponse:
     """Get session count for a user."""
+    if not _sessions_enabled():
+        return SessionCountResponse(user_id=user_id, count=0, max_allowed=MAX_SESSIONS_PER_USER)
+
     store = _get_session_store()
     count = store.get_session_count(user_id)
     MAX_SESSIONS = int(os.getenv("MAX_SESSIONS_PER_USER", "50"))
@@ -118,9 +130,21 @@ def get_session_count(user_id: str) -> SessionCountResponse:
 @router.post("/create", response_model=SessionMetadata)
 def create_session(payload: SessionCreateRequest) -> SessionMetadata:
     """Create a new session."""
+    if not _sessions_enabled():
+        now = datetime.utcnow().isoformat() + "Z"
+        return SessionMetadata(
+            session_id=str(uuid.uuid4()),
+            user_id=payload.user_id,
+            name=payload.name,
+            tags=payload.tags or [],
+            created_at=now,
+            last_activity=now,
+            message_count=0,
+        )
+
     store = _get_session_store()
     user_id = payload.user_id  # Use user_id from payload
-    
+
     # Check session limit
     count = store.get_session_count(user_id)
     MAX_SESSIONS = int(os.getenv("MAX_SESSIONS_PER_USER", "50"))
@@ -235,8 +259,11 @@ def get_session_state(
     limit: int = SESSION_RECENT_LIMIT,
 ) -> SessionTurnResponse:
     """Get session messages."""
+    if not _sessions_enabled():
+        return SessionTurnResponse(session_id=session_id, recent_turns=[], summary={})
+
     store = _get_session_store()
-    
+
     recent = store.get_recent(session_id, limit=limit)
     summary = store.get_summary(session_id)
     return SessionTurnResponse(session_id=session_id, recent_turns=recent, summary=summary)
