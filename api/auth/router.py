@@ -1,28 +1,16 @@
 """Authentication router with registration, login, verification, and token management."""
 
-import os
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Response, Cookie, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 
 from api.auth import security, email, models
 from api.auth.dependencies import get_current_user
+from api.database.postgres import get_engine
 
 router = APIRouter(tags=["authentication"])
-
-# Database connection from environment
-POSTGRES_USER = os.environ.get("DB_USER")
-POSTGRES_PASSWORD = os.environ.get("DB_PASSWORD")
-POSTGRES_HOST = os.environ.get("DB_HOST", "localhost")
-POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
-POSTGRES_DB = os.environ.get("DB_NAME")
-
-# Create async engine for auth operations
-connection_string = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-engine = create_async_engine(connection_string, pool_size=5, max_overflow=10)
 
 
 @router.post("/register", status_code=201, response_model=models.MessageResponse)
@@ -34,7 +22,7 @@ async def register(user: models.UserRegister):
     - Generates email verification token
     - Sends verification email
     """
-    async with engine.begin() as conn:
+    async with get_engine().begin() as conn:
         # Check if user exists
         existing = await conn.execute(
             text("SELECT id FROM users WHERE email = :email"),
@@ -86,7 +74,7 @@ async def verify_email(token: str):
     - Marks user as verified
     - Deletes used token
     """
-    async with engine.begin() as conn:
+    async with get_engine().begin() as conn:
         # Find token
         result = await conn.execute(
             text("""
@@ -139,7 +127,7 @@ async def login(
     - Creates access and refresh tokens
     - Sets refresh token as HttpOnly cookie
     """
-    async with engine.begin() as conn:
+    async with get_engine().begin() as conn:
         # Get user
         result = await conn.execute(
             text("""
@@ -223,7 +211,7 @@ async def refresh_token(
             detail="Invalid refresh token"
         )
     
-    async with engine.begin() as conn:
+    async with get_engine().begin() as conn:
         # Check if token exists and not revoked
         result = await conn.execute(
             text("""
@@ -300,7 +288,7 @@ async def logout(
     - Deletes refresh token cookie
     """
     if refresh_token:
-        async with engine.begin() as conn:
+        async with get_engine().begin() as conn:
             await conn.execute(
                 text("UPDATE refresh_tokens SET revoked = true WHERE token = :token"),
                 {"token": refresh_token}

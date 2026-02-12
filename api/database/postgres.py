@@ -94,6 +94,30 @@ _queue_stats = {
 }
 
 
+def get_engine() -> AsyncEngine:
+    """Get or create the shared async engine. Use this instead of creating separate engines."""
+    global _engine
+    if _engine is None:
+        connection_string = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+        connect_args = {}
+        if POSTGRES_HOST not in ("localhost", "127.0.0.1"):
+            import ssl as _ssl
+            ssl_ctx = _ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = _ssl.CERT_NONE
+            connect_args["ssl"] = ssl_ctx
+        _engine = create_async_engine(
+            connection_string,
+            pool_size=MAX_POOL_SIZE,
+            max_overflow=MAX_OVERFLOW,
+            pool_timeout=POOL_TIMEOUT,
+            pool_pre_ping=True,
+            echo=False,
+            connect_args=connect_args,
+        )
+    return _engine
+
+
 class CustomEmbeddings(Embeddings):
     """
     Custom LangChain embeddings wrapper that uses get_chunk_embedding from api.embeddings.utils.helper.
@@ -276,26 +300,10 @@ async def initialize_vector_store() -> PGVectorStore:
     if missing_vars:
         raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
     
-    # Create engine if not exists
+    # Create engine if not exists (reuses shared engine)
     if _engine is None:
-        connection_string = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-        # Use SSL for non-localhost connections (required by RDS)
-        connect_args = {}
-        if POSTGRES_HOST not in ("localhost", "127.0.0.1"):
-            import ssl as _ssl
-            ssl_ctx = _ssl.create_default_context()
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = _ssl.CERT_NONE
-            connect_args["ssl"] = ssl_ctx
-        _engine = create_async_engine(
-            connection_string,
-            pool_size=MAX_POOL_SIZE,
-            max_overflow=MAX_OVERFLOW,
-            pool_timeout=POOL_TIMEOUT,
-            pool_pre_ping=True,
-            echo=False,
-            connect_args=connect_args,
-        )
+        _engine = get_engine()
+    if _pg_engine is None:
         _pg_engine = PGEngine.from_engine(engine=_engine)
     
     # Create schema if it doesn't exist
