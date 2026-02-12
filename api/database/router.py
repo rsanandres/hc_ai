@@ -5,8 +5,15 @@ from __future__ import annotations
 import importlib.util
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
 from pathlib import Path
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+from api.auth.dependencies import get_current_user
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
@@ -28,7 +35,8 @@ def _load_postgres_module():
 
 
 @router.get("/stats")
-async def db_stats():
+@limiter.limit("30/minute")
+async def db_stats(request: Request):
     """Return database connection and queue statistics."""
     module = _load_postgres_module()
     if not module:
@@ -41,7 +49,8 @@ async def db_stats():
 
 
 @router.get("/queue")
-async def db_queue():
+@limiter.limit("30/minute")
+async def db_queue(request: Request):
     """Return queue stats."""
     module = _load_postgres_module()
     if not module:
@@ -54,12 +63,15 @@ async def db_queue():
 
 
 @router.get("/errors")
+@limiter.limit("30/minute")
 async def get_error_logs(
+    request: Request,
     limit: int = 100,
     offset: int = 0,
     file_id: Optional[str] = None,
     resource_id: Optional[str] = None,
     error_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Get error logs with optional filtering.
@@ -93,7 +105,8 @@ async def get_error_logs(
 
 
 @router.get("/errors/counts")
-async def get_error_counts():
+@limiter.limit("30/minute")
+async def get_error_counts(request: Request, current_user: dict = Depends(get_current_user)):
     """Get error statistics grouped by type and file/resource."""
     module = _load_postgres_module()
     if not module:
@@ -106,7 +119,8 @@ async def get_error_counts():
 
 
 @router.get("/cloudwatch")
-async def cloudwatch_metrics():
+@limiter.limit("30/minute")
+async def cloudwatch_metrics(request: Request):
     """Return CloudWatch metrics for ECS, ALB, and RDS."""
     from api.database.cloudwatch import get_cloudwatch_metrics
     try:
@@ -116,7 +130,8 @@ async def cloudwatch_metrics():
 
 
 @router.get("/patients")
-async def list_patients():
+@limiter.limit("30/minute")
+async def list_patients(request: Request):
     """List all unique patients in the vector store with summary info.
 
     Returns:

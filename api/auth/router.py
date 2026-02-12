@@ -2,19 +2,25 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Response, Cookie
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import text
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from api.auth import security, email, models
 from api.auth.dependencies import get_current_user
 from api.database.postgres import get_engine
 
+limiter = Limiter(key_func=get_remote_address)
+
 router = APIRouter(tags=["authentication"])
 
 
 @router.post("/register", status_code=201, response_model=models.MessageResponse)
-async def register(user: models.UserRegister):
+@limiter.limit("3/minute")
+async def register(request: Request, user: models.UserRegister):
     """
     Register a new user account.
     
@@ -115,7 +121,9 @@ async def verify_email(token: str):
 
 
 @router.post("/login", response_model=models.UserLogin)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends()
 ):

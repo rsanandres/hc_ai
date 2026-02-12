@@ -8,8 +8,14 @@ import uuid
 import asyncio
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+from api.auth.dependencies import get_current_user
+
+limiter = Limiter(key_func=get_remote_address)
 
 try:
     from langgraph.errors import GraphRecursionError
@@ -60,7 +66,8 @@ def _guard_output(text: str) -> str:
 
 
 @router.post("/query", response_model=AgentQueryResponse)
-async def query_agent(payload: AgentQueryRequest) -> AgentQueryResponse:
+@limiter.limit("10/minute")
+async def query_agent(request: Request, payload: AgentQueryRequest) -> AgentQueryResponse:
     if not payload.query.strip():
         raise HTTPException(status_code=400, detail="Query is required.")
 
@@ -160,15 +167,16 @@ async def query_agent(payload: AgentQueryRequest) -> AgentQueryResponse:
         print(f"Error in agent query [request_id={request_id}]: {type(e).__name__}: {str(e)}")
         print(f"Traceback: {error_details}")
 
-        # Return a 500 with error details instead of crashing
+        # Return generic error — details stay server-side
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error: {type(e).__name__}: {str(e)}"
+            detail="Internal server error"
         )
 
 
 @router.post("/query/stream")
-async def query_agent_stream(payload: AgentQueryRequest):
+@limiter.limit("10/minute")
+async def query_agent_stream(request: Request, payload: AgentQueryRequest):
     """Stream agent execution progress using Server-Sent Events."""
     
     async def event_generator():
@@ -404,7 +412,7 @@ async def query_agent_stream(payload: AgentQueryRequest):
             error_msg = f"Error in streaming agent query [request_id={request_id}]: {type(e).__name__}: {str(e)}"
             print(error_msg)
             print(f"Traceback: {error_details}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Internal server error'})}\n\n"
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -415,7 +423,7 @@ async def health() -> Dict[str, str]:
 
 
 @router.post("/reload-prompts")
-async def reload_prompts() -> Dict[str, Any]:
+async def reload_prompts(current_user: dict = Depends(get_current_user)) -> Dict[str, Any]:
     """Reload prompts from YAML file without restarting server.
 
     Useful for development when prompts.yaml has been updated.

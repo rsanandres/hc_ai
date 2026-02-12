@@ -74,20 +74,22 @@ async def bm25_search(
     
     params: Dict[str, Any] = {"query": query_param, "k": k}
     
-    # Add metadata filters if provided
+    # Add metadata filters if provided (whitelist keys to prevent SQL injection)
+    ALLOWED_METADATA_KEYS = {"patient_id", "resource_type", "date", "encounter_id"}
     where_clauses = []
     if filter_metadata:
         for key, value in filter_metadata.items():
-            # Database uses snake_case
+            if key not in ALLOWED_METADATA_KEYS:
+                continue
             param_name = f"meta_{key}"
             where_clauses.append(
                 f"langchain_metadata->>'{key}' = :{param_name}"
             )
             params[param_name] = value
-    
+
     if where_clauses:
         base_sql += " AND " + " AND ".join(where_clauses)
-    
+
     # Order by rank and limit
     base_sql += """
         ORDER BY rank DESC
@@ -164,17 +166,19 @@ async def bm25_search_with_phrase(
     
     params: Dict[str, Any] = {"query": query, "k": k}
     
-    # Add metadata filters
+    # Add metadata filters (whitelist keys to prevent SQL injection)
+    ALLOWED_METADATA_KEYS = {"patient_id", "resource_type", "date", "encounter_id"}
     where_clauses = []
     if filter_metadata:
         for key, value in filter_metadata.items():
-            # Database uses snake_case
+            if key not in ALLOWED_METADATA_KEYS:
+                continue
             param_name = f"meta_{key}"
             where_clauses.append(
                 f"langchain_metadata->>'{key}' = :{param_name}"
             )
             params[param_name] = value
-    
+
     if where_clauses:
         base_sql += " AND " + " AND ".join(where_clauses)
     

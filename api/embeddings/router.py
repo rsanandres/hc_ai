@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from api.embeddings.models import ClinicalNote
 from api.embeddings.utils.helper import process_and_store
+from api.auth.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/ingest")
-async def ingest_note(note: ClinicalNote, background_tasks: BackgroundTasks):
+async def ingest_note(note: ClinicalNote, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """
     Ingest a clinical note for processing.
     

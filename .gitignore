@@ -41,3 +41,6 @@ DEBUG_*.md
 PLAN_*.md
 chunking.md
 CLAUDE.md
+
+# Stray CLI argument files (from accidental AWS CLI output)
+--*

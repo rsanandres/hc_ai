@@ -9,15 +9,22 @@ from fastapi import FastAPI
 import sys
 import requests
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from utils.env_loader import load_env_recursive
-from api.shared.middleware import setup_cors, setup_logging
+from api.shared.middleware import setup_cors, setup_logging, SecurityHeadersMiddleware
 
 # Load environment variables
 load_env_recursive(ROOT_DIR)
+
+# Rate limiter (shared across routers)
+limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI app
 app = FastAPI(
@@ -26,9 +33,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Setup CORS
+# Attach limiter to app state so routers can access it
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Setup middleware
 setup_cors(app)
 setup_logging(app)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Import routers
 from api.agent import router as agent_router

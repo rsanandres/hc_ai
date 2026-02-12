@@ -100,9 +100,14 @@ def get_engine() -> AsyncEngine:
         connect_args = {}
         if POSTGRES_HOST not in ("localhost", "127.0.0.1"):
             import ssl as _ssl
-            ssl_ctx = _ssl.create_default_context()
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = _ssl.CERT_NONE
+            rds_ca_path = os.path.join(os.path.dirname(__file__), "..", "..", "rds-combined-ca-bundle.pem")
+            if os.path.exists(rds_ca_path):
+                ssl_ctx = _ssl.create_default_context(cafile=rds_ca_path)
+            elif os.path.exists("/app/rds-combined-ca-bundle.pem"):
+                ssl_ctx = _ssl.create_default_context(cafile="/app/rds-combined-ca-bundle.pem")
+            else:
+                # Fallback: verify server cert with system CA store
+                ssl_ctx = _ssl.create_default_context()
             connect_args["ssl"] = ssl_ctx
         _engine = create_async_engine(
             connection_string,
@@ -432,7 +437,10 @@ async def _search_similar_with_sql_filter(
     where_clauses = []
     params: Dict[str, Any] = {"k": k}
 
+    ALLOWED_METADATA_KEYS = {"patient_id", "resource_type", "date", "encounter_id"}
     for key, value in filter_metadata.items():
+        if key not in ALLOWED_METADATA_KEYS:
+            continue
         param_name = f"meta_{key}"
         where_clauses.append(f"langchain_metadata->>'{key}' = :{param_name}")
         params[param_name] = value
@@ -651,10 +659,10 @@ async def get_patient_timeline(
         WHERE langchain_metadata->>'patient_id' = :patient_id
     """
     
-    # Add resource type filter if specified
+    # Add resource type filter if specified (parameterized to prevent SQL injection)
     if resource_types:
-        type_list = ", ".join(f"'{t}'" for t in resource_types)
-        base_sql += f" AND langchain_metadata->>'resource_type' IN ({type_list})"
+        base_sql += " AND langchain_metadata->>'resource_type' = ANY(:resource_types)"
+        params["resource_types"] = resource_types
     
     # Sort by effectiveDate descending (newest first)
     base_sql += """

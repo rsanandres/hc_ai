@@ -16,6 +16,9 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Build the Next.js app
 RUN npm run build
 
+# Run as non-root user (node user is built into the node image)
+USER node
+
 # Expose port
 EXPOSE 3000
 

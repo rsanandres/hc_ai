@@ -17,6 +17,11 @@ RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('sen
 # Pre-download NLTK punkt tokenizer
 RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('punkt_tab', quiet=True)"
 
+# Download RDS CA bundle for SSL certificate verification
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+    curl -sS -o /app/rds-combined-ca-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem && \
+    apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
 # Copy application code (only what's needed at runtime)
 COPY api/ ./api/
 COPY utils/ ./utils/
@@ -24,6 +29,10 @@ COPY postgres/queue_storage.py ./postgres/queue_storage.py
 
 # postgres/ needs to be a package for imports
 RUN touch ./postgres/__init__.py
+
+# Run as non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+USER appuser
 
 EXPOSE 8000
 
