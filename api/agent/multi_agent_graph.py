@@ -261,7 +261,7 @@ def _load_conversation_history(session_id: str, patient_id: Optional[str] = None
 
 
 async def _researcher_node(state: AgentState) -> AgentState:
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
+    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
     patient_id = state.get("patient_id")
 
     # Set patient context for auto-injection into tool calls
@@ -327,7 +327,7 @@ If you still cannot find data, provide a response stating what you searched for 
 DO NOT repeat this system message in your output."""))
     
     # System-wide step limit check (fail gracefully before timeout)
-    if current_iteration >= 12:
+    if current_iteration >= 8:
         messages.append(SystemMessage(content="""[SYSTEM CONTEXT - Do not echo this in your response]
 
 You are approaching the step limit. Provide your best response NOW based on what you have found.
@@ -578,7 +578,7 @@ async def _validator_node(state: AgentState) -> AgentState:
 
 async def _respond_node(state: AgentState) -> AgentState:
     """Synthesize the researched information into a user-friendly response."""
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
+    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
     system_prompt = get_response_prompt() or get_conversational_prompt()
 
     # Get the research findings
@@ -724,7 +724,7 @@ def _route_after_validation(state: AgentState) -> str:
     """
     validation_result = state.get("validation_result", "NEEDS_REVISION")
     iteration_count = state.get("iteration_count", 0)
-    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "15"))
+    max_iterations = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
     
     # Conversational queries skip validation (safety check)
     if state.get("query_type") == "conversational":

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+from botocore.config import Config as BotoConfig
 from langchain_aws import ChatBedrock
 import sys
 
@@ -48,6 +49,11 @@ def get_llm() -> Any:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             },
+            config=BotoConfig(
+                read_timeout=60,
+                connect_timeout=10,
+                retries={"max_attempts": 2},
+            ),
         )
 
     model = os.getenv("LLM_MODEL", "chevalblanc/claude-3-haiku:latest")
