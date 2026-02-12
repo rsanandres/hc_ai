@@ -555,6 +555,39 @@ export async function getDatabaseStats(): Promise<Record<string, unknown> | null
   }
 }
 
+// CloudWatch metrics response
+export interface CloudWatchMetricsResponse {
+  metrics: {
+    id: string;
+    namespace: string;
+    metricName: string;
+    stat: string;
+    timestamps: string[];
+    values: number[];
+    latest: number | null;
+  }[];
+  cached: boolean;
+  fetched_at: string;
+  error?: string;
+}
+
+export async function getCloudWatchMetrics(): Promise<CloudWatchMetricsResponse | null> {
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/db/cloudwatch`,
+      {},
+      HEALTH_CHECK_TIMEOUT
+    );
+    if (!response.ok) {
+      return null;
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error getting CloudWatch metrics:', error);
+    return null;
+  }
+}
+
 export async function getErrorCounts(): Promise<Record<string, unknown> | null> {
   try {
     const response = await fetchWithTimeout(

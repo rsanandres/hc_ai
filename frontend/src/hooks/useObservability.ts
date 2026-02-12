@@ -9,8 +9,9 @@ import {
   getEmbeddingsHealth,
   getDatabaseStats,
   getErrorCounts,
+  getCloudWatchMetrics,
 } from '@/services/agentApi';
-import { CloudWatchMetric, LangSmithTrace, MetricSummary, RerankerStats, CostBreakdown } from '@/types/observability';
+import { CloudWatchMetric, CloudWatchTimeSeries, LangSmithTrace, MetricSummary, RerankerStats, CostBreakdown } from '@/types/observability';
 import { ServiceHealth } from '@/types';
 
 const REFRESH_INTERVAL = 5000; // 5 seconds for real-time updates
@@ -36,6 +37,7 @@ export interface DatabaseStats {
 function getInitialData() {
   return {
     cloudWatchMetrics: [] as CloudWatchMetric[],
+    cloudWatchTimeSeries: [] as CloudWatchTimeSeries[],
     langSmithTraces: [] as LangSmithTrace[],
     rerankerStats: null as RerankerStats | null,
     databaseStats: null as DatabaseStats | null,
@@ -57,7 +59,7 @@ export function useObservability() {
     
     try {
       // Fetch all service health checks in parallel (graceful degradation)
-      const [agentHealth, rerankerHealth, embeddingsHealth, rerankerStats, langSmithTraces, dbStats, errorCounts] = await Promise.allSettled([
+      const [agentHealth, rerankerHealth, embeddingsHealth, rerankerStats, langSmithTraces, dbStats, errorCounts, cwMetrics] = await Promise.allSettled([
         getAgentHealth(),
         getRerankerHealth(),
         getEmbeddingsHealth(),
@@ -65,6 +67,7 @@ export function useObservability() {
         getLangSmithTraces(10),
         getDatabaseStats(),
         getErrorCounts(),
+        getCloudWatchMetrics(),
       ]);
 
       // Build service health array (handle failures gracefully)
@@ -191,11 +194,25 @@ export function useObservability() {
       // Calculate cost breakdown (placeholder - would need actual cost data)
       const costBreakdown: CostBreakdown[] = [];
 
-      // CloudWatch metrics (placeholder - would need actual CloudWatch integration)
+      // CloudWatch time-series from backend
+      const cwData = cwMetrics.status === 'fulfilled' ? cwMetrics.value : null;
+      const cloudWatchTimeSeries: CloudWatchTimeSeries[] =
+        cwData?.metrics?.map((m: CloudWatchTimeSeries) => ({
+          id: m.id,
+          namespace: m.namespace,
+          metricName: m.metricName,
+          stat: m.stat,
+          timestamps: m.timestamps,
+          values: m.values,
+          latest: m.latest,
+        })) ?? [];
+
+      // Legacy flat metrics (kept for backward compat)
       const cloudWatchMetrics: CloudWatchMetric[] = [];
 
       setData({
         cloudWatchMetrics,
+        cloudWatchTimeSeries,
         langSmithTraces: traces,
         rerankerStats: stats,
         databaseStats: databaseStats && !databaseStats.error ? databaseStats : null,
@@ -257,6 +274,7 @@ export function useObservability() {
 
   return {
     cloudWatchMetrics: data.cloudWatchMetrics,
+    cloudWatchTimeSeries: data.cloudWatchTimeSeries,
     langSmithTraces: data.langSmithTraces,
     rerankerStats: data.rerankerStats,
     databaseStats: data.databaseStats,

@@ -51,6 +51,17 @@ export interface CostBreakdown {
   percentage: number;
 }
 
+// CloudWatch time-series data for sparklines
+export interface CloudWatchTimeSeries {
+  id: string;            // e.g. "ecs_cpu", "alb_p50"
+  namespace: string;
+  metricName: string;
+  stat: string;
+  timestamps: string[];
+  values: number[];
+  latest: number | null;
+}
+
 // Service abstraction interface for future migration
 export interface ObservabilityService {
   getCloudWatchMetrics(namespace?: string): Promise<CloudWatchMetric[]>;

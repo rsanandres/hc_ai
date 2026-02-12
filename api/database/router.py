@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
-import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from fastapi import APIRouter
 from pathlib import Path
@@ -104,6 +103,16 @@ async def get_error_counts():
         return counts
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.get("/cloudwatch")
+async def cloudwatch_metrics():
+    """Return CloudWatch metrics for ECS, ALB, and RDS."""
+    from api.database.cloudwatch import get_cloudwatch_metrics
+    try:
+        return get_cloudwatch_metrics()
+    except Exception as e:
+        return {"error": str(e), "metrics": []}
 
 
 @router.get("/patients")

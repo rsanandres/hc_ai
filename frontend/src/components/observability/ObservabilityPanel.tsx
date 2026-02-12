@@ -2,10 +2,10 @@
 
 import { Box, Typography, IconButton, Tooltip, Grid, alpha, Divider, Skeleton } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Activity, RefreshCw, Layers, HardDrive, Database } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell } from 'recharts';
+import { Activity, RefreshCw, Layers, HardDrive, Database, Cloud } from 'lucide-react';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell } from 'recharts';
 import { ServiceHealth } from '@/types';
-import { LangSmithTrace, MetricSummary, RerankerStats } from '@/types/observability';
+import { CloudWatchTimeSeries, LangSmithTrace, MetricSummary, RerankerStats } from '@/types/observability';
 import { DatabaseStats } from '@/hooks/useObservability';
 import { HealthIndicator } from './HealthIndicator';
 import { MetricsCard } from './MetricsCard';
@@ -17,9 +17,36 @@ interface ObservabilityPanelProps {
   langSmithTraces: LangSmithTrace[];
   rerankerStats: RerankerStats | null;
   databaseStats: DatabaseStats | null;
+  cloudWatchTimeSeries: CloudWatchTimeSeries[];
   lastUpdated: Date;
   onRefresh: () => void;
   isLoading: boolean;
+}
+
+// Mini sparkline component for CloudWatch metrics
+function Sparkline({ data, color, height = 40 }: { data: number[]; color: string; height?: number }) {
+  if (!data.length) return null;
+  const chartData = data.map((v, i) => ({ v, i }));
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+        <defs>
+          <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.05} />
+          </linearGradient>
+        </defs>
+        <Area
+          type="monotone"
+          dataKey="v"
+          stroke={color}
+          strokeWidth={1.5}
+          fill={`url(#grad-${color.replace('#', '')})`}
+          isAnimationActive={false}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
 }
 
 export function ObservabilityPanel({
@@ -28,6 +55,7 @@ export function ObservabilityPanel({
   langSmithTraces,
   rerankerStats,
   databaseStats,
+  cloudWatchTimeSeries,
   lastUpdated,
   onRefresh,
   isLoading,
@@ -195,6 +223,110 @@ export function ObservabilityPanel({
               ))}
             </Grid>
           </Box>
+
+          {/* AWS Infrastructure (hidden when no data) */}
+          {cloudWatchTimeSeries.length > 0 && (() => {
+            const find = (id: string) => cloudWatchTimeSeries.find(m => m.id === id);
+            const ecsCpu = find('ecs_cpu');
+            const ecsMem = find('ecs_memory');
+            const albReq = find('alb_requests');
+            const albP50 = find('alb_p50');
+            const albP99 = find('alb_p99');
+            const rdsCpu = find('rds_cpu');
+            const rdsConn = find('rds_connections');
+
+            const fmt = (v: number | null | undefined, unit: string) => {
+              if (v == null) return '--';
+              if (unit === '%') return `${v.toFixed(1)}%`;
+              if (unit === 's') return v < 1 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)}s`;
+              if (unit === 'count') return v >= 1000 ? `${(v / 1000).toFixed(1)}K` : `${Math.round(v)}`;
+              return `${v}`;
+            };
+
+            return (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                    <Cloud size={12} /> AWS Infrastructure
+                  </Typography>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: '8px',
+                      bgcolor: (theme) => alpha(theme.palette.common.white, 0.02),
+                      border: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {/* ECS */}
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', fontWeight: 600 }}>
+                      ECS Container
+                    </Typography>
+                    <Grid container spacing={1} sx={{ mb: 1 }}>
+                      <Grid size={{ xs: 6 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>CPU</Typography>
+                          <Typography variant="caption" fontWeight={600} sx={{ fontSize: '0.65rem' }}>{fmt(ecsCpu?.latest, '%')}</Typography>
+                        </Box>
+                        <Sparkline data={ecsCpu?.values ?? []} color="#14b8a6" />
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>Memory</Typography>
+                          <Typography variant="caption" fontWeight={600} sx={{ fontSize: '0.65rem' }}>{fmt(ecsMem?.latest, '%')}</Typography>
+                        </Box>
+                        <Sparkline data={ecsMem?.values ?? []} color="#8b5cf6" />
+                      </Grid>
+                    </Grid>
+
+                    {/* ALB */}
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', fontWeight: 600, mt: 1, display: 'block' }}>
+                      ALB Traffic
+                    </Typography>
+                    <Grid container spacing={1} sx={{ mb: 1 }}>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>Requests</Typography>
+                        <Typography variant="caption" fontWeight={600} display="block" sx={{ fontSize: '0.65rem' }}>{fmt(albReq?.latest, 'count')}</Typography>
+                        <Sparkline data={albReq?.values ?? []} color="#3b82f6" height={30} />
+                      </Grid>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>p50</Typography>
+                        <Typography variant="caption" fontWeight={600} display="block" sx={{ fontSize: '0.65rem' }}>{fmt(albP50?.latest, 's')}</Typography>
+                        <Sparkline data={albP50?.values ?? []} color="#f59e0b" height={30} />
+                      </Grid>
+                      <Grid size={{ xs: 4 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>p99</Typography>
+                        <Typography variant="caption" fontWeight={600} display="block" sx={{ fontSize: '0.65rem' }}>{fmt(albP99?.latest, 's')}</Typography>
+                        <Sparkline data={albP99?.values ?? []} color="#ef4444" height={30} />
+                      </Grid>
+                    </Grid>
+
+                    {/* RDS */}
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', fontWeight: 600, mt: 1, display: 'block' }}>
+                      RDS Database
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid size={{ xs: 6 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>CPU</Typography>
+                          <Typography variant="caption" fontWeight={600} sx={{ fontSize: '0.65rem' }}>{fmt(rdsCpu?.latest, '%')}</Typography>
+                        </Box>
+                        <Sparkline data={rdsCpu?.values ?? []} color="#14b8a6" />
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>Connections</Typography>
+                          <Typography variant="caption" fontWeight={600} sx={{ fontSize: '0.65rem' }}>{fmt(rdsConn?.latest, 'count')}</Typography>
+                        </Box>
+                        <Sparkline data={rdsConn?.values ?? []} color="#8b5cf6" />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Box>
+              </>
+            );
+          })()}
 
           <Divider sx={{ my: 2 }} />
 
