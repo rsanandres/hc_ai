@@ -278,7 +278,7 @@ async def get_error_logs(
             if row.get("metadata"):
                 try:
                     row["metadata"] = json.loads(row["metadata"])
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError):
                     pass
         
         conn.close()

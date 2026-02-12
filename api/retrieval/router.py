@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException
 from langchain_core.documents import Document

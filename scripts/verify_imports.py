@@ -15,9 +15,7 @@ def verify_imports_in_file(filepath: Path) -> list[str]:
             content = f.read()
         
         tree = ast.parse(content, filename=str(filepath))
-        
-        rel_path = filepath.relative_to(ROOT_DIR)
-        
+
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 module = node.module

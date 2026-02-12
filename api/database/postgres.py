@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
 
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from sqlalchemy import text
 from langchain_postgres import PGVectorStore, PGEngine
@@ -33,9 +32,8 @@ from postgres.queue_storage import (
     get_queue_sizes,
     load_all_queued_chunks,
     log_error,
-    get_error_logs,
-    get_error_counts,
-    clear_error_logs,
+    get_error_logs,  # noqa: F401 (re-exported for dynamic module access)
+    get_error_counts,  # noqa: F401 (re-exported for dynamic module access)
 )
 
 # Search for .env file (repo root)
@@ -127,10 +125,10 @@ class CustomEmbeddings(Embeddings):
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embed a list of documents."""
         embeddings = []
-        for text in texts:
-            embedding = get_chunk_embedding(text)
+        for txt in texts:
+            embedding = get_chunk_embedding(txt)
             if embedding is None:
-                raise ValueError(f"Failed to generate embedding for text: {text[:50]}...")
+                raise ValueError(f"Failed to generate embedding for text: {txt[:50]}...")
             embeddings.append(embedding)
         return embeddings
     
@@ -340,77 +338,6 @@ async def initialize_vector_store() -> PGVectorStore:
     await start_queue_worker()
     
     return _vector_store
-
-
-async def store_chunk(
-    chunk_text: str,
-    chunk_id: str,
-    metadata: Dict[str, Any]
-) -> bool:
-    """
-    Store a single chunk in the PostgreSQL vector store.
-    
-    Args:
-        chunk_text: The text content of the chunk
-        chunk_id: Unique identifier for the chunk
-        metadata: Dictionary of metadata to store with the chunk
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        vector_store = await initialize_vector_store()
-        
-        # Create a Document with the chunk
-        doc = Document(
-            id=chunk_id,
-            page_content=chunk_text,
-            metadata=metadata
-        )
-        
-        # Add document to vector store
-        await vector_store.aadd_documents([doc])
-        
-        return True
-    except Exception as e:
-        print(f"Error storing chunk {chunk_id}: {e}")
-        return False
-
-
-async def store_chunks_batch(
-    chunks: List[Dict[str, Any]]
-) -> int:
-    """
-    Store multiple chunks in a batch operation.
-    
-    Args:
-        chunks: List of dictionaries, each containing:
-            - 'text': chunk text content
-            - 'id': chunk ID
-            - 'metadata': metadata dictionary
-    
-    Returns:
-        Number of successfully stored chunks
-    """
-    try:
-        vector_store = await initialize_vector_store()
-        
-        documents = []
-        for chunk in chunks:
-            doc = Document(
-                id=chunk['id'],
-                page_content=chunk['text'],
-                metadata=chunk.get('metadata', {})
-            )
-            documents.append(doc)
-        
-        if documents:
-            await vector_store.aadd_documents(documents)
-        
-        return len(documents)
-    except Exception as e:
-        print(f"Error storing chunks batch: {e}")
-        return 0
 
 
 async def search_similar_chunks(
@@ -1029,41 +956,6 @@ async def store_chunks_batch(chunks: List[Dict[str, Any]]) -> int:
 # ---------------------- Monitoring APIs ----------------------
 
 
-async def get_error_logs(
-    limit: int = 100,
-    offset: int = 0,
-    file_id: Optional[str] = None,
-    resource_id: Optional[str] = None,
-    error_type: Optional[str] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Get error logs with optional filtering.
-    
-    Args:
-        limit: Maximum number of records to return
-        offset: Offset for pagination
-        file_id: Filter by file ID
-        resource_id: Filter by resource ID
-        error_type: Filter by error type
-    
-    Returns:
-        List of error log records
-    """
-    from postgres.queue_storage import get_error_logs as _get_error_logs
-    return await _get_error_logs(limit, offset, file_id, resource_id, error_type)
-
-
-async def get_error_counts() -> Dict[str, Any]:
-    """
-    Get error statistics grouped by error type and file/resource.
-    
-    Returns:
-        Dictionary with error counts and breakdowns
-    """
-    from postgres.queue_storage import get_error_counts as _get_error_counts
-    return await _get_error_counts()
-
-
 async def get_queue_stats() -> Dict[str, Any]:
     queue_sizes = await get_queue_sizes()
     return {
@@ -1172,7 +1064,7 @@ async def main():
     print(f"  Table: {TABLE_NAME}")
     
     try:
-        vector_store = await initialize_vector_store()
+        await initialize_vector_store()
         print("✓ Vector store initialized successfully")
         
         # Test: Store a sample chunk

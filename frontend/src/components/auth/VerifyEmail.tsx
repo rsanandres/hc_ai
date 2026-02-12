@@ -14,6 +14,7 @@ export function VerifyEmail() {
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('');
 
+    /* eslint-disable react-hooks/set-state-in-effect -- Setting state based on URL params and async verification */
     useEffect(() => {
         const token = searchParams.get('token');
 
@@ -33,14 +34,16 @@ export function VerifyEmail() {
                 setTimeout(() => {
                     router.push('/login');
                 }, 3000);
-            } catch (error: any) {
+            } catch (error: unknown) {
                 setStatus('error');
-                setMessage(error.response?.data?.detail || 'Verification failed. The link may have expired.');
+                const axiosErr = error as { response?: { data?: { detail?: string } } };
+                setMessage(axiosErr.response?.data?.detail || 'Verification failed. The link may have expired.');
             }
         };
 
         verifyEmail();
     }, [searchParams, router]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-100 px-4">

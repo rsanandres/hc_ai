@@ -20,6 +20,7 @@ export function ChatInput({ onSend, onStop, isLoading, disabled, externalInput, 
   // Update input when externalInput changes
   useEffect(() => {
     if (externalInput) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing external prop to local state
       setInput(externalInput);
     }
   }, [externalInput]);

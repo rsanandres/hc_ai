@@ -1,0 +1,5 @@
+[lint]
+# E402: Module-level imports not at top of file
+# Intentional in scripts/ and api/ where sys.path manipulation
+# must happen before project imports
+per-file-ignores = { "scripts/*.py" = ["E402"], "api/**/*.py" = ["E402"] }

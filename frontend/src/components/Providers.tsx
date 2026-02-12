@@ -25,6 +25,7 @@ export function Providers({ children }: ProvidersProps) {
   }));
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydration pattern: must detect client mount to avoid SSR mismatch
     setMounted(true);
   }, []);
 

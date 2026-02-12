@@ -536,12 +536,12 @@ async def main():
         logger.info("Checking for duplicates...")
         dup_info = await check_duplicates()
         
-        print(f"\nDuplicate Check Results:")
+        print("\nDuplicate Check Results:")
         print(f"  Total embeddings: {dup_info['total_embeddings']}")
         print(f"  Duplicate chunk_id groups: {dup_info['duplicate_groups']}")
         
         if dup_info['duplicate_details']:
-            print(f"\n  Top duplicates:")
+            print("\n  Top duplicates:")
             for chunk_id, count in dup_info['duplicate_details'][:10]:
                 print(f"    {chunk_id[:50]}...: {count} copies")
         

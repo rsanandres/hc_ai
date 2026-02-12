@@ -43,7 +43,7 @@ export function ChatPanel({
   onSend,
   onStop,
   onClear,
-  onOpenSessions,
+  onOpenSessions: _onOpenSessions,
   streamingState,
   externalInput,
   selectedPatient,

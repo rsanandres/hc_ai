@@ -14,7 +14,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from utils.env_loader import load_env_recursive
-from utils.env_loader import load_env_recursive
 from api.shared.middleware import setup_cors, setup_logging
 
 # Load environment variables

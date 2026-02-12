@@ -27,8 +27,6 @@ import argparse
 import mimetypes
 import os
 from pathlib import Path
-from typing import Optional
-from dotenv import load_dotenv
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError

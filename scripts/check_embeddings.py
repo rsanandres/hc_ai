@@ -8,7 +8,6 @@ import asyncio
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
-from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[1]  # Go up 1 level from scripts/ to project root
 sys.path.insert(0, str(ROOT_DIR))

@@ -22,7 +22,6 @@ from api.agent.models import AgentDocument, AgentQueryRequest, AgentQueryRespons
 from api.agent.guardrails.validators import setup_guard
 
 from api.agent.pii_masker.factory import create_pii_masker
-from api.session.store_dynamodb import get_session_store
 
 router = APIRouter()
 
@@ -106,23 +105,23 @@ async def query_agent(payload: AgentQueryRequest) -> AgentQueryResponse:
         tool_calls = result.get("tools_called", [])
         sources = _build_sources(result.get("sources", []))
 
-        try:
-            store.append_turn(payload.session_id, role="user", text=masked_query, meta={"masked": True})
-            store.append_turn(
-                payload.session_id,
-                role="assistant",
-                text=response_text,
-                meta={
-                    "tool_calls": tool_calls,
-                    "sources": [{"doc_id": s.doc_id, "content_preview": s.content_preview, "metadata": s.metadata} for s in sources],
-                    "researcher_output": result.get("researcher_output"),
-                    "validator_output": result.get("validator_output"),
-                    "validation_result": result.get("validation_result"),
-                }
-            )
-        except Exception as store_error:
-            # Log store errors but don't fail the request
-            print(f"Warning: Failed to store session turn: {store_error}")
+        # Session store disabled (DynamoDB deferred)
+        # try:
+        #     store.append_turn(payload.session_id, role="user", text=masked_query, meta={"masked": True})
+        #     store.append_turn(
+        #         payload.session_id,
+        #         role="assistant",
+        #         text=response_text,
+        #         meta={
+        #             "tool_calls": tool_calls,
+        #             "sources": [{"doc_id": s.doc_id, "content_preview": s.content_preview, "metadata": s.metadata} for s in sources],
+        #             "researcher_output": result.get("researcher_output"),
+        #             "validator_output": result.get("validator_output"),
+        #             "validation_result": result.get("validation_result"),
+        #         }
+        #     )
+        # except Exception as store_error:
+        #     print(f"Warning: Failed to store session turn: {store_error}")
 
         return AgentQueryResponse(
             query=payload.query,
@@ -336,7 +335,7 @@ async def query_agent_stream(payload: AgentQueryRequest):
                 # Agent hit recursion limit - return graceful response with what we have
                 current_iter = accumulated_state.get("iteration_count", 0)
                 print(f"[STREAM {request_id}] Agent hit recursion limit (recursion_limit={recursion_limit}): {str(e)}")
-                yield f"data: {json.dumps({'type': 'max_iterations', 'message': f'Reached recursion limit', 'iteration_count': current_iter})}\n\n"
+                yield f"data: {json.dumps({'type': 'max_iterations', 'message': 'Reached recursion limit', 'iteration_count': current_iter})}\n\n"
 
                 # Check if we have partial results
                 if accumulated_state.get("researcher_output"):
@@ -368,23 +367,23 @@ async def query_agent_stream(payload: AgentQueryRequest):
             tool_calls = result.get("tools_called", [])
             sources = _build_sources(result.get("sources", []))
             
-            # Store in session
-            try:
-                store.append_turn(payload.session_id, role="user", text=masked_query, meta={"masked": True})
-                store.append_turn(
-                    payload.session_id,
-                    role="assistant",
-                    text=response_text,
-                    meta={
-                        "tool_calls": tool_calls,
-                        "sources": [{"doc_id": s.doc_id, "content_preview": s.content_preview, "metadata": s.metadata} for s in sources],
-                        "researcher_output": result.get("researcher_output"),
-                        "validator_output": result.get("validator_output"),
-                        "validation_result": result.get("validation_result"),
-                    }
-                )
-            except Exception as store_error:
-                print(f"Warning: Failed to store session turn: {store_error}")
+            # Session store disabled (DynamoDB deferred)
+            # try:
+            #     store.append_turn(payload.session_id, role="user", text=masked_query, meta={"masked": True})
+            #     store.append_turn(
+            #         payload.session_id,
+            #         role="assistant",
+            #         text=response_text,
+            #         meta={
+            #             "tool_calls": tool_calls,
+            #             "sources": [{"doc_id": s.doc_id, "content_preview": s.content_preview, "metadata": s.metadata} for s in sources],
+            #             "researcher_output": result.get("researcher_output"),
+            #             "validator_output": result.get("validator_output"),
+            #             "validation_result": result.get("validation_result"),
+            #         }
+            #     )
+            # except Exception as store_error:
+            #     print(f"Warning: Failed to store session turn: {store_error}")
             
             # Send final response
             final_data = {

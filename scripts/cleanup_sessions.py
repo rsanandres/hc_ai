@@ -1,5 +1,4 @@
 import os
-import boto3
 from api.session.store_dynamodb import get_session_store
 from boto3.dynamodb.conditions import Key
 

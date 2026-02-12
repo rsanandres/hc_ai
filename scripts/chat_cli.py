@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[1]  # Go up 1 level from scripts/ to project root
 if str(ROOT_DIR) not in sys.path:
@@ -82,7 +81,7 @@ def query_agent(
         print(f"Error: Could not connect to agent service at {agent_url}")
         print("Make sure the service is running: uvicorn api.main:app --reload --port 8000")
         sys.exit(1)
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         print(f"Error: HTTP {response.status_code}: {response.text}")
         sys.exit(1)
     except Exception as e:

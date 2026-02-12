@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
 from botocore.config import Config as BotoConfig
 from langchain_aws import ChatBedrock
 import sys

@@ -1,5 +1,4 @@
 import os
-import boto3
 from api.session.store_dynamodb import get_session_store
 from boto3.dynamodb.conditions import Key
 
@@ -42,12 +41,7 @@ def migrate_user(old_uid: str, new_uid: str):
 
         # 2. Update each session
         count = 0
-        with table.batch_writer() as batch:
-            # Note: batch_writer doesn't support update_item, it supports put_item and delete_item.
-            # So for update, we must use client.update_item individually, OR use put_item to overwrite.
-            # standard update_item is safer if we only want to change one field.
-            pass
-            
+        # Note: batch_writer doesn't support update_item, only put_item and delete_item.
         # Since we want to update only one field and batch_writer is for put/delete,
         # we will iterate and update individually. It's 36 items, so it's fast enough.
         

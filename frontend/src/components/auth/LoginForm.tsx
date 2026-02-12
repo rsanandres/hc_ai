@@ -22,8 +22,8 @@ export function LoginForm() {
         try {
             await login(email, password);
             // Navigation handled by AuthContext
-        } catch (err: any) {
-            setError(err.message || 'Login failed. Please try again.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -85,7 +85,7 @@ export function LoginForm() {
                     </button>
 
                     <div className="text-center text-sm">
-                        <span className="text-gray-600">Don't have an account? </span>
+                        <span className="text-gray-600">Don&apos;t have an account? </span>
                         <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
                             Sign up
                         </Link>

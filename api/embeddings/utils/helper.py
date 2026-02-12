@@ -5,7 +5,6 @@ Helper functions for FHIR data processing including chunking, embeddings, and me
 
 import os
 import sys
-import importlib.util
 import json
 import logging
 import requests
@@ -706,7 +705,7 @@ async def process_and_store(note):
         
         # Use RecursiveJsonSplitter if JSON is available, otherwise use RecursiveCharacterTextSplitter
         if note.resourceJson and note.resourceJson.strip():
-            logger.info(f"  Using RecursiveJsonSplitter on JSON resource")
+            logger.info("  Using RecursiveJsonSplitter on JSON resource")
             json_to_chunk = note.resourceJson
             chunk_hierarchy = recursive_json_chunking(
                 json_to_chunk,
@@ -714,7 +713,7 @@ async def process_and_store(note):
                 min_chunk_size=500
             )
         else:
-            logger.warning(f"  No JSON resource provided, using RecursiveCharacterTextSplitter on content")
+            logger.warning("  No JSON resource provided, using RecursiveCharacterTextSplitter on content")
             # Fallback to RecursiveCharacterTextSplitter when JSON is not available
             if LANGCHAIN_AVAILABLE and RecursiveCharacterTextSplitter:
                 text_splitter = RecursiveCharacterTextSplitter(

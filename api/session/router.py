@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException
 
 import os
-from typing import Optional
 
 from api.session.models import (
     SessionSummaryUpdate,
@@ -32,7 +31,7 @@ def _sessions_enabled() -> bool:
 
 
 def _get_session_store():
-    from api.session.store_dynamodb import SessionStore, get_session_store
+    from api.session.store_dynamodb import get_session_store
     return get_session_store()
 
 

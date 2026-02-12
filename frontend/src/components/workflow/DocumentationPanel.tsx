@@ -112,7 +112,7 @@ export function DocumentationPanel() {
             <Card variant="outlined" sx={{ bgcolor: (theme) => alpha(theme.palette.info.main, 0.05) }}>
                 <CardContent>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                        💡 <strong>What's Inside:</strong>
+                        💡 <strong>What&apos;s Inside:</strong>
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                         • Architecture diagrams (Local & AWS)<br />

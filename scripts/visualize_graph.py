@@ -132,13 +132,12 @@ def main() -> int:
         graph = create_multi_agent_graph()
         
         mermaid = ""
-        ascii_diag = ""
-        
+
         if args.format in ["mermaid", "both"]:
             mermaid = print_mermaid_diagram(graph)
-        
+
         if args.format in ["ascii", "both"]:
-            ascii_diag = print_ascii_diagram(graph)
+            print_ascii_diagram(graph)
         
         if args.format == "info":
             print_graph_info(graph)

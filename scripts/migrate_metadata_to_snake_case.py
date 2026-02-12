@@ -98,7 +98,7 @@ async def migrate_metadata():
         if sample_after and sample_after['langchain_metadata']:
             metadata = json.loads(sample_after['langchain_metadata']) if isinstance(sample_after['langchain_metadata'], str) else sample_after['langchain_metadata']
             print(f"  Keys: {list(metadata.keys())}")
-            print(f"\n  Full sample:")
+            print("\n  Full sample:")
             print(json.dumps(metadata, indent=4))
         
         # Verify patient_id exists (critical for retrieval)

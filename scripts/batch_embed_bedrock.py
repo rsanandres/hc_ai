@@ -585,7 +585,7 @@ async def main():
     print(f"  Concurrency:   {args.batch_size} patients, {args.embed_batch} embed workers")
     print(f"  Insert batch:  {args.insert_batch} docs/batch")
     if args.dry_run:
-        print(f"  Mode:          DRY RUN")
+        print("  Mode:          DRY RUN")
     if args.limit:
         print(f"  Limit:         {args.limit} patients")
     print("═" * 70 + "\n")

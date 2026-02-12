@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Typography, Card, CardContent, Chip, IconButton, Stack, Dialog, DialogTitle, DialogContent, Tabs, Tab, List, ListItem, ListItemText, TextField, Grid } from '@mui/material';
+import { Box, Typography, Card, CardContent, Chip, IconButton, Stack, Dialog, DialogTitle, DialogContent, Tabs, Tab, List, ListItem, ListItemText, TextField } from '@mui/material';
 import { Activity, ClipboardList, FileJson, X, Pill, Stethoscope, Calendar, Thermometer } from 'lucide-react';
 import { alpha } from '@mui/material/styles';
 import dynamic from 'next/dynamic';

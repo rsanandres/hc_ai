@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from passlib.context import CryptContext
-from jose import JWTError, jwt
+from jose import jwt
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

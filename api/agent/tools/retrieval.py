@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import re
-import uuid
 from typing import Any, Dict, Optional
 
 import httpx
@@ -306,7 +305,7 @@ async def retrieve_patient_data(
         use_hybrid: If True, use BM25+semantic hybrid search. If False, semantic only.
     """
     from api.agent.tools.argument_validators import validate_patient_id
-    from api.database.postgres import hybrid_search, search_similar_chunks
+    from api.database.postgres import hybrid_search
 
     # ALWAYS use patient_id from context when available - this prevents LLM from
     # hallucinating wrong patient IDs. The context is set from the frontend selection.

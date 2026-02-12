@@ -18,8 +18,7 @@ import {
   TextField,
   alpha,
 } from '@mui/material';
-import { Trash2, MessageSquare, Plus, MoreVertical, X, AlertCircle, Edit } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Trash2, Plus, X, AlertCircle, Edit } from 'lucide-react';
 import { useSessions } from '@/hooks/useSessions';
 import { SessionMetadata } from '@/types';
 
@@ -33,6 +32,7 @@ interface SessionSidebarProps {
 const useFormattedDate = (dateString: string) => {
   const [formatted, setFormatted] = useState(dateString);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Hydration pattern: date formatting must happen client-side only */
   useEffect(() => {
     try {
       const date = new Date(dateString);
@@ -67,6 +67,7 @@ const useFormattedDate = (dateString: string) => {
       setFormatted(dateString);
     }
   }, [dateString]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return formatted;
 };

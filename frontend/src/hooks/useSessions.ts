@@ -48,7 +48,7 @@ export function useSessions() {
         console.log('[useSessions] Created new session:', newSession.session_id);
         setActiveSessionId(newSession.session_id);
         setActiveSession(newSession);
-      } catch (err) {
+      } catch {
         console.error('[useSessions] Failed to create session via API, using local fallback');
         // Fallback: use local session ID if API fails
         const localSessionId = generateSessionId();

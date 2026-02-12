@@ -8,8 +8,7 @@ import { ObservabilityPanel } from '@/components/observability/ObservabilityPane
 import { ConnectModal } from '@/components/lead-capture/ConnectModal';
 import { useChat } from '@/hooks/useChat';
 import { useWorkflow } from '@/hooks/useWorkflow';
-import { IconButton, Tooltip, alpha, Box, Alert } from '@mui/material';
-import { Menu } from 'lucide-react';
+import { Alert } from '@mui/material';
 import { useObservability } from '@/hooks/useObservability';
 import { useLeadCapture } from '@/hooks/useLeadCapture';
 import { useSessions } from '@/hooks/useSessions';
@@ -34,6 +33,7 @@ export default function Home() {
     langSmithTraces,
     rerankerStats,
     databaseStats,
+    cloudWatchTimeSeries,
     lastUpdated,
     refreshData,
     isLoading: obsLoading,
@@ -164,6 +164,7 @@ export default function Home() {
             langSmithTraces={langSmithTraces}
             rerankerStats={rerankerStats}
             databaseStats={databaseStats}
+            cloudWatchTimeSeries={cloudWatchTimeSeries}
             lastUpdated={lastUpdated}
             onRefresh={refreshData}
             isLoading={obsLoading}

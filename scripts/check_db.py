@@ -6,7 +6,6 @@ import os
 import asyncio
 from pathlib import Path
 
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 import sys
@@ -84,11 +83,11 @@ async def check_database():
             
             if not table_exists:
                 print(f"   ❌ Table '{SCHEMA_NAME}.{TABLE_NAME}' does not exist!")
-                print(f"   The table should be created automatically when you first store data.")
+                print("   The table should be created automatically when you first store data.")
                 return
             
             # Get table structure
-            print(f"\n3. Table structure:")
+            print("\n3. Table structure:")
             columns = await conn.execute(
                 text("""
                     SELECT 
@@ -108,7 +107,7 @@ async def check_database():
                 print(f"   - {col_name}: {type_str}")
             
             # Check row count
-            print(f"\n4. Checking data...")
+            print("\n4. Checking data...")
             row_count = await conn.execute(
                 text(f'SELECT COUNT(*) FROM "{SCHEMA_NAME}"."{TABLE_NAME}"')
             )
@@ -126,7 +125,7 @@ async def check_database():
                 print(f"   ✓ Table has {count} rows!")
                 
                 # Show sample data
-                print(f"\n5. Sample data (first 5 rows):")
+                print("\n5. Sample data (first 5 rows):")
                 samples = await conn.execute(
                     text(f'''
                         SELECT 

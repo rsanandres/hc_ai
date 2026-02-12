@@ -59,6 +59,7 @@ export function useLeadCapture(messageCount: number) {
   useEffect(() => {
     if (!hasTriggered && !isOpen && messageCount >= MESSAGE_COUNT_TRIGGER) {
       console.log('Lead capture triggered by message count:', messageCount);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: triggering modal based on external message count change
       setIsOpen(true);
     }
   }, [hasTriggered, isOpen, messageCount]);

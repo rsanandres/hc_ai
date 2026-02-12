@@ -47,7 +47,7 @@ except ImportError:
     get_session_store = None
 
 # Import query classifier
-from api.agent.query_classifier import QueryClassifier, QueryType
+from api.agent.query_classifier import QueryClassifier
 
 
 class AgentState(TypedDict, total=False):
@@ -433,7 +433,7 @@ Do NOT make additional tool calls. DO NOT repeat this system message."""))
         print(f"[TRAJECTORY] Empty search count: {empty_count}")
     elif found_results_this_iteration:
         empty_count = 0  # Reset on success
-        print(f"[TRAJECTORY] Found results! Resetting empty count to 0")
+        print("[TRAJECTORY] Found results! Resetting empty count to 0")
     
     return {
         **state,
@@ -583,17 +583,15 @@ async def _respond_node(state: AgentState) -> AgentState:
 
     # Get the research findings
     researcher_output = state.get("researcher_output", "")
-    validation_result = state.get("validation_result", "NEEDS_REVISION")
-    validator_output = state.get("validator_output", "")
     user_query = state.get("query", "")
 
     # DEBUG: Log what we're sending to the Response Synthesizer
     debug_hallucination = os.getenv("DEBUG_HALLUCINATION", "").lower() == "true"
     if debug_hallucination:
-        print(f"\n[DEBUG:RESPOND] ========== RESPONSE SYNTHESIZER INPUT ==========")
+        print("\n[DEBUG:RESPOND] ========== RESPONSE SYNTHESIZER INPUT ==========")
         print(f"[DEBUG:RESPOND] User query: {user_query}")
         print(f"[DEBUG:RESPOND] Researcher output (first 1000 chars):\n{researcher_output[:1000]}")
-        print(f"[DEBUG:RESPOND] ================================================\n")
+        print("[DEBUG:RESPOND] ================================================\n")
     
     # Build messages for response synthesis - only include what user needs to see
     messages = [
@@ -622,9 +620,9 @@ async def _respond_node(state: AgentState) -> AgentState:
 
     # DEBUG: Log the final synthesized response
     if debug_hallucination:
-        print(f"\n[DEBUG:RESPOND] ========== FINAL RESPONSE OUTPUT ==========")
+        print("\n[DEBUG:RESPOND] ========== FINAL RESPONSE OUTPUT ==========")
         print(f"[DEBUG:RESPOND] Final response:\n{final_response}")
-        print(f"[DEBUG:RESPOND] ===========================================\n")
+        print("[DEBUG:RESPOND] ===========================================\n")
 
         # HALLUCINATION CHECK: Look for known example data in response
         example_hallucinations = [
@@ -636,7 +634,7 @@ async def _respond_node(state: AgentState) -> AgentState:
         for condition, code in example_hallucinations:
             if condition in final_response and code not in researcher_output:
                 print(f"[DEBUG:HALLUCINATION] WARNING: '{condition}' in response but '{code}' not in researcher output!")
-                print(f"[DEBUG:HALLUCINATION] This may be a hallucination from prompt examples!")
+                print("[DEBUG:HALLUCINATION] This may be a hallucination from prompt examples!")
 
     return {**state, "final_response": final_response}
 
@@ -832,8 +830,8 @@ def create_multi_agent_graph():
     graph_type = os.getenv("AGENT_GRAPH_TYPE", "simple").lower()
     
     if graph_type == "complex":
-        print(f"[GRAPH] Creating complex multi-agent graph (researcher → validator → respond)")
+        print("[GRAPH] Creating complex multi-agent graph (researcher → validator → respond)")
         return create_complex_graph()
     else:
-        print(f"[GRAPH] Creating simple single-agent graph (researcher → respond)")
+        print("[GRAPH] Creating simple single-agent graph (researcher → respond)")
         return create_simple_graph()

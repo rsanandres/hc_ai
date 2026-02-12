@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Response, Cookie, status
+from fastapi import APIRouter, HTTPException, Depends, Response, Cookie
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import text
 

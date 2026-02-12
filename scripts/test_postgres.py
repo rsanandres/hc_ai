@@ -5,7 +5,6 @@ import asyncio
 from pathlib import Path
 from datetime import datetime
 
-from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 from langchain_postgres import PGVectorStore, PGEngine

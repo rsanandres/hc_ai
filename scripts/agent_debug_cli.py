@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from dotenv import load_dotenv
 
 # ANSI color codes for terminal output
 class Colors:
@@ -69,7 +68,7 @@ class AgentDebugCLI:
     def print_header(self) -> None:
         """Print CLI header."""
         print(f"\n{Colors.HEADER}{'═' * 70}")
-        print(f"  Agent Debug CLI - Enhanced Terminal Interface")
+        print("  Agent Debug CLI - Enhanced Terminal Interface")
         print(f"{'═' * 70}{Colors.RESET}")
         print(f"{Colors.INFO}Session: {self.session_id}{Colors.RESET}")
         print(f"{Colors.INFO}Verbose mode: {'ON' if self.verbose else 'OFF'}{Colors.RESET}")
@@ -80,13 +79,13 @@ class AgentDebugCLI:
     def _print_help(self) -> None:
         """Print help text."""
         print(f"{Colors.DIM}Commands:")
-        print(f"  /verbose    - Toggle verbose mode (show Researcher/Validator output)")
-        print(f"  /langsmith  - Toggle LangSmith trace URL display (hidden by default)")
-        print(f"  /history    - Show recent session history")
-        print(f"  /patient <id> - Set patient ID for queries")
-        print(f"  /clear      - Clear session history")
-        print(f"  /help       - Show this help")
-        print(f"  /save       - Save last response to file")
+        print("  /verbose    - Toggle verbose mode (show Researcher/Validator output)")
+        print("  /langsmith  - Toggle LangSmith trace URL display (hidden by default)")
+        print("  /history    - Show recent session history")
+        print("  /patient <id> - Set patient ID for queries")
+        print("  /clear      - Clear session history")
+        print("  /help       - Show this help")
+        print("  /save       - Save last response to file")
         print(f"  /exit       - Exit CLI{Colors.RESET}")
     
     def check_health(self) -> bool:
@@ -301,7 +300,7 @@ class AgentDebugCLI:
             print(f"{Colors.ERROR}Error: Could not connect to agent service at {self.agent_url}")
             print(f"Make sure the service is running: uvicorn api.main:app --reload --port 8000{Colors.RESET}")
             return None
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.HTTPError:
             print(f"{Colors.ERROR}Error: HTTP {response.status_code}: {response.text}{Colors.RESET}")
             return None
         except Exception as e:

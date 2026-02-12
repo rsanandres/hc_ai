@@ -10,7 +10,6 @@ Usage:
 
 import argparse
 import asyncio
-import json
 import os
 import sys
 from datetime import datetime
@@ -268,8 +267,8 @@ def generate_markdown_report(results: List[TestResult], output_path: str) -> str
         "",
         "## Summary",
         "",
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| Total Tests | {total} |",
         f"| ✓ Passed | {passed} ({100*passed/total:.1f}%) |",
         f"| ✗ Failed | {failed} ({100*failed/total:.1f}%) |",
@@ -402,7 +401,7 @@ async def main():
     # Generate report
     print(f"\n{'='*60}")
     print("Generating report...")
-    report = generate_markdown_report(results, args.output)
+    generate_markdown_report(results, args.output)
     print(f"✓ Report saved to: {args.output}")
 
     # Print summary
