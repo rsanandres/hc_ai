@@ -74,41 +74,32 @@ function getStepDetails(stepId: string, queryText?: string, details?: Record<str
       ];
     case 'pii_mask':
       return [
-        { label: 'Entities Found', value: getVal(details, 'entitiesFound'), icon: Eye },
-        { label: 'Names Masked', value: getVal(details, 'namesMasked'), icon: EyeOff },
-        { label: 'IDs Masked', value: getVal(details, 'idsMasked'), icon: EyeOff },
-        { label: 'Dates Masked', value: getVal(details, 'datesMasked'), icon: EyeOff },
-        { label: 'Processing Time', value: fmtMs(getVal(details, 'processingTime')), icon: Clock },
+        { label: 'Provider', value: 'AWS Comprehend Medical', icon: ShieldCheck },
+        { label: 'Action', value: 'DetectPHI on input query', icon: Eye },
       ];
     case 'vector_search':
       return [
-        { label: 'Collection', value: 'fhir_chunks', icon: Database },
+        { label: 'Collection', value: 'hc_ai_table (pgvector)', icon: Database },
         { label: 'Documents Retrieved', value: getVal(details, 'docsRetrieved'), icon: FileText, highlight: true },
-        { label: 'Search Time', value: fmtMs(getVal(details, 'searchTime')), icon: Clock },
-        { label: 'Embedding Model', value: 'mxbai-embed-large', icon: Zap },
+        { label: 'Search', value: 'Hybrid (BM25 + Semantic)', icon: Zap },
+        { label: 'Embedding Model', value: 'Amazon Titan Embed v2', icon: Zap },
       ];
     case 'rerank':
       return [
-        { label: 'Candidates In', value: getVal(details, 'candidatesIn'), icon: FileText },
         { label: 'Results Out', value: getVal(details, 'resultsOut'), icon: FileText, highlight: true },
-        { label: 'Top Score', value: getVal(details, 'topScore') !== null ? getVal(details, 'topScore')!.toFixed(3) : null, icon: Zap },
-        { label: 'Model', value: 'MiniLM-L6-v2', icon: Brain },
-        { label: 'Rerank Time', value: fmtMs(getVal(details, 'rerankTime')), icon: Clock },
+        { label: 'Strategy', value: 'Auto resource-type filtering', icon: Layers },
       ];
     case 'llm_react':
       return [
-        { label: 'Model', value: 'qwen2.5:32b', icon: Brain },
-        { label: 'Input Tokens', value: getVal(details, 'inputTokens'), icon: Hash },
-        { label: 'Output Tokens', value: getVal(details, 'outputTokens'), icon: Hash },
+        { label: 'Model', value: 'Claude 3.5 Sonnet (Bedrock)', icon: Brain },
         { label: 'Reasoning Steps', value: getVal(details, 'reasoningSteps'), icon: Zap, highlight: true },
         { label: 'Tools Invoked', value: getVal(details, 'toolsInvoked'), icon: Layers },
-        { label: 'Latency', value: fmtMs(getVal(details, 'latency')), icon: Clock },
       ];
     case 'response':
       return [
+        { label: 'Synthesizer', value: 'Claude 3.5 Haiku (Bedrock)', icon: Brain },
         { label: 'Response Length', value: fmtChars(getVal(details, 'responseLength')), icon: Hash },
         { label: 'Sources Cited', value: getVal(details, 'sourcesCited'), icon: FileText, highlight: true },
-        { label: 'PII Re-masked', value: getVal(details, 'piiRemasked'), icon: EyeOff },
         { label: 'Total Latency', value: fmtMs(getVal(details, 'totalLatency')), icon: Clock },
       ];
     default:
