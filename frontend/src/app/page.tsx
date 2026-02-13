@@ -6,6 +6,7 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { WorkflowPanel } from '@/components/workflow/WorkflowPanel';
 import { ObservabilityPanel } from '@/components/observability/ObservabilityPanel';
 import { ConnectModal } from '@/components/lead-capture/ConnectModal';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { useChat } from '@/hooks/useChat';
 import { useWorkflow } from '@/hooks/useWorkflow';
 import { Alert } from '@mui/material';
@@ -107,7 +108,19 @@ export default function Home() {
   const lastUserMessage = messages.filter(m => m.role === 'user').pop();
   const displayQuery = lastUserMessage?.content || lastQuery;
 
+  // Welcome screen handler
+  const handleWelcomeStart = (patient: { id: string; name: string }, prompt: string) => {
+    setSelectedPatient(patient);
+    // Delay send slightly so patient context is set before the message fires
+    setTimeout(() => handleSend(prompt), 50);
+  };
 
+  // Show welcome screen when no patient selected and no messages
+  const showWelcome = !selectedPatient && messages.length === 0;
+
+  if (showWelcome) {
+    return <WelcomeScreen onStart={handleWelcomeStart} />;
+  }
 
   return (
     <>

@@ -6,7 +6,10 @@ import { PatientSelector } from './PatientSelector';
 import { PatientDataModal } from './PatientDataModal';
 import { RecommendedPrompts } from './RecommendedPrompts';
 
-// Import data
+// Shared patient metadata + prompts
+import { FEATURED_PATIENTS, RECOMMENDED_PROMPTS } from '../../data/featured-patients';
+
+// Import FHIR bundles for persona detail view
 import larsonJson from '../../data/personas/larson.json';
 import ziemeJson from '../../data/personas/zieme.json';
 import christiansenJson from '../../data/personas/christiansen.json';
@@ -18,9 +21,6 @@ import amayaJson from '../../data/personas/abbott_amaya.json';
 
 import { PatientSummary } from '../../services/agentApi';
 
-// Example patients selected for data richness (280-375 chunks each, all 13 resource types)
-import examplePatients from '../../data/example-patients.json';
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FhirBundle = any;
 
@@ -31,51 +31,27 @@ interface StaticPatient {
   chunks: number;
 }
 
-interface ExamplePatient {
-  name: string;
-  patient_id: string;
-  chunks: number;
-  resource_types: number;
-  age: number;
-  conditions: string[];
-  description: string;
-  note?: string;
-}
-
-// Local persona data with full FHIR bundles for detailed view
-const LOCAL_PERSONA_DATA: Record<string, { name: string; age: number; conditions: string[]; description: string; data?: FhirBundle }> = {
-  "5e81d5b2-af01-4367-9b2e-0cdf479094a4": { name: "Danial Larson", age: 65, conditions: ["Recurrent rectal polyp", "Hypertension", "Chronic kidney disease"], description: "Older male with multiple chronic conditions.", data: larsonJson },
-  "616d0449-c98e-46bb-a1f6-0170499fd4e4": { name: "Hailee Kovacek", age: 52, conditions: ["Allergies", "Conditions", "Labs", "Procedures"], description: "Richest patient data — 375 records across 13 resource types.", data: ziemeJson },
-  "0beb6802-3353-4144-8ae3-97176bce86c3": { name: "Doug Christiansen", age: 24, conditions: ["Chronic sinusitis"], description: "Young adult with chronic sinus issues.", data: christiansenJson },
-  "6a4168a1-2cfd-4269-8139-8a4a663adfe7": { name: "Jamie Hegmann", age: 71, conditions: ["Coronary Heart Disease", "Myocardial Infarction History"], description: "Female patient with significant cardiac history.", data: hegmannJson },
-  "7f7ad77a-5dd5-4df0-ba36-f4f1e4b6d368": { name: "Carlo Herzog", age: 23, conditions: ["Childhood asthma", "Allergic rhinitis", "Nut allergy"], description: "Young male with multiple allergies and asthma.", data: herzogJson },
-  "53fcaff1-eb44-4257-819b-50b47f311edf": { name: "Adam Abbott", age: 31, conditions: ["Normal Pregnancy"], description: "Young female with active pregnancy.", data: adamJson },
-  "f883318e-9a81-4f77-9cff-5318a00b777f": { name: "Alva Abbott", age: 67, conditions: ["Prediabetes"], description: "Older male managing prediabetes.", data: alvaJson },
-  "4b7098a8-13b8-4916-a379-6ae2c8a70a8a": { name: "Amaya Abbott", age: 69, conditions: ["Hypertension", "Chronic sinusitis", "Concussion History"], description: "Older male with hypertension and history of head injury.", data: amayaJson },
+// Map FHIR bundles onto featured patients by ID (only the 8 original personas have bundles)
+const FHIR_BUNDLES: Record<string, FhirBundle> = {
+  "5e81d5b2-af01-4367-9b2e-0cdf479094a4": larsonJson,
+  "616d0449-c98e-46bb-a1f6-0170499fd4e4": ziemeJson,
+  "0beb6802-3353-4144-8ae3-97176bce86c3": christiansenJson,
+  "6a4168a1-2cfd-4269-8139-8a4a663adfe7": hegmannJson,
+  "7f7ad77a-5dd5-4df0-ba36-f4f1e4b6d368": herzogJson,
+  "53fcaff1-eb44-4257-819b-50b47f311edf": adamJson,
+  "f883318e-9a81-4f77-9cff-5318a00b777f": alvaJson,
+  "4b7098a8-13b8-4916-a379-6ae2c8a70a8a": amayaJson,
 };
 
-// Merge example patients (data-rich) into LOCAL_PERSONA_DATA, skipping duplicates
-for (const ep of examplePatients as ExamplePatient[]) {
-  if (!LOCAL_PERSONA_DATA[ep.patient_id]) {
-    LOCAL_PERSONA_DATA[ep.patient_id] = {
-      name: ep.name,
-      age: ep.age,
-      conditions: ep.conditions,
-      description: ep.description,
-    };
-  }
-}
-
-const PERSONAS = Object.entries(LOCAL_PERSONA_DATA).map(([id, data]) => ({ id, ...data }));
-
-const RECOMMENDED_PROMPTS = [
-  "What are the patient's active conditions?",
-  "Summarize the patient's medication history.",
-  "Does the patient have any known allergies?",
-  "What are the patient's recent lab results?",
-  "Show me the timeline of clinical events.",
-  "When was the patient's last encounter?",
-];
+// Build PERSONAS from shared data, attaching FHIR bundles where available
+const PERSONAS = FEATURED_PATIENTS.map(p => ({
+  id: p.id,
+  name: p.name,
+  age: p.age,
+  conditions: p.conditions,
+  description: p.description,
+  data: FHIR_BUNDLES[p.id] as FhirBundle | undefined,
+}));
 
 // Patient type for selection
 interface SelectedPatient {
