@@ -14,7 +14,7 @@ interface MainLayoutProps {
 export function MainLayout({ chatPanel, workflowPanel, observabilityPanel }: MainLayoutProps) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg')); // >1200px
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   return (
     <Box

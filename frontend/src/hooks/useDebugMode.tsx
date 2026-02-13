@@ -13,14 +13,14 @@ const DebugModeContext = createContext<DebugModeContextType | undefined>(undefin
 const STORAGE_KEY = 'atlas-debug-mode';
 
 export function DebugModeProvider({ children }: { children: ReactNode }) {
-    const [debugMode, setDebugModeState] = useState(false);
+    const [debugMode, setDebugModeState] = useState(true);
 
-    // Load preference from localStorage on mount
+    // Load preference from localStorage on mount (only override if explicitly disabled)
     useEffect(() => {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored === 'true' && !debugMode) {
+        if (stored === 'false' && debugMode) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setDebugModeState(true);
+            setDebugModeState(false);
         }
     }, [debugMode]);
 
