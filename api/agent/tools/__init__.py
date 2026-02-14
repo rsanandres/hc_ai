@@ -42,7 +42,7 @@ def _call_reranker(
         "k_return": k_return,
         "filter_metadata": filter_metadata,
     }
-    response = requests.post(_reranker_url("rerank"), json=payload, timeout=60)
+    response = requests.post(_reranker_url("rerank"), json=payload, timeout=120)
     response.raise_for_status()
     data = response.json()
     results = data.get("results", [])

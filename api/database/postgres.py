@@ -720,7 +720,7 @@ async def _post_json(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _send_request(request: urllib.request.Request) -> Dict[str, Any]:
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=120) as response:
         raw = response.read().decode("utf-8")
         return json.loads(raw)
 
