@@ -117,7 +117,9 @@ async def _rerank_single(request: RerankRequest) -> RerankResponse:
             return RerankResponse(query=query, results=results)
 
     reranker = _get_reranker()
-    scored_docs = reranker.rerank_with_scores(query, candidates)
+    # Run synchronous cross-encoder inference in a thread pool to avoid
+    # blocking the event loop (which deadlocks self-referencing HTTP calls)
+    scored_docs = await asyncio.to_thread(reranker.rerank_with_scores, query, candidates)
     doc_id_map = {id(doc): doc_id for doc, doc_id in candidate_pairs}
     scored_pairs: List[Tuple[str, float]] = []
     for doc, score in scored_docs:
