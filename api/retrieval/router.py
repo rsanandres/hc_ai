@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import sys
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from langchain_core.documents import Document
 
+from api.database.postgres import hybrid_search
 from api.retrieval.cache import InMemoryCache, build_cache_key
 from api.retrieval.cross_encoder import Reranker
 from api.retrieval.models import (
@@ -23,6 +26,11 @@ from api.retrieval.models import (
     FullDocumentResponse,
     StatsResponse,
 )
+
+# Add project root to path so we can import from postgres/ (not a package)
+_ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
 
 router = APIRouter()
 
@@ -52,39 +60,6 @@ def _get_cache() -> InMemoryCache:
     return _cache
 
 
-def _load_postgres_module():
-    """Load postgres module dynamically (will be replaced with api.database import later)."""
-    import importlib.util
-    from pathlib import Path
-    
-    ROOT_DIR = Path(__file__).resolve().parents[2]
-    postgres_file = ROOT_DIR / "api" / "database" / "postgres.py"
-    if not postgres_file.exists():
-        # Fallback to old location during migration
-        postgres_file = ROOT_DIR / "postgres" / "langchain-postgres.py"
-        if not postgres_file.exists():
-            return None
-    
-    spec = importlib.util.spec_from_file_location("langchain_postgres", postgres_file)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _load_ingest_module():
-    """Load ingest module dynamically (will be replaced with api.database import later)."""
-    import importlib.util
-    from pathlib import Path
-    
-    ROOT_DIR = Path(__file__).resolve().parents[2]
-    ingest_file = ROOT_DIR / "postgres" / "ingest_fhir_json.py"
-    if not ingest_file.exists():
-        return None
-    spec = importlib.util.spec_from_file_location("ingest_fhir_json", ingest_file)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
 
 def _document_id(doc: Document, fallback_index: int) -> str:
     doc_id = getattr(doc, "id", None)
@@ -108,10 +83,6 @@ def _to_response(doc: Document, doc_id: str, score: float = 0.0) -> DocumentResp
 
 
 async def _rerank_single(request: RerankRequest) -> RerankResponse:
-    module = _load_postgres_module()
-    if not module:
-        raise HTTPException(status_code=500, detail="Database module not found")
-
     query = request.query
     k_retrieve = request.k_retrieve or DEFAULT_K_RETRIEVE
     k_return = request.k_return or DEFAULT_K_RETURN
@@ -119,7 +90,7 @@ async def _rerank_single(request: RerankRequest) -> RerankResponse:
     # ENFORCED: Always use Hybrid Search (BM25 + Semantic)
     # This ensures exact matches for ICD-10 codes, dates, and names are found
     # even if semantic similarity is low.
-    candidates: List[Document] = await module.hybrid_search(
+    candidates: List[Document] = await hybrid_search(
         query=query,
         k=k_retrieve,
         filter_metadata=request.filter_metadata,
@@ -163,13 +134,8 @@ async def _rerank_single(request: RerankRequest) -> RerankResponse:
 async def _fetch_full_documents(patient_ids: List[str]) -> List[FullDocumentResponse]:
     if not patient_ids:
         return []
-    module = _load_ingest_module()
-    if not module:
-        return []
-    get_files = getattr(module, "get_latest_raw_files_by_patient_ids", None)
-    if get_files is None:
-        return []
-    raw_files = await get_files(patient_ids)
+    from postgres.ingest_fhir_json import get_latest_raw_files_by_patient_ids
+    raw_files = await get_latest_raw_files_by_patient_ids(patient_ids)
     documents: List[FullDocumentResponse] = []
     for item in raw_files:
         documents.append(

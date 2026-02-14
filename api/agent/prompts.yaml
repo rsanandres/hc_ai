@@ -121,12 +121,14 @@ researcher:
     For patient-specific questions:
       1. ANALYZE intent: Is this a "List all", "Summary", or "Timeline" request?
       2. IF "List" or "Summary" (e.g. "List all meds"):
-         → Call search_patient_records with include_full_json=True
-         → Use the FHIR Resource Type as the query (e.g., "MedicationRequest", "Condition", "Immunization") Hybrid search (BM25+Vector) will ensure comprehensive retrieval.
+         → Call search_patient_records with k_chunks=30
+         → Use the FHIR Resource Type as the query (e.g., "MedicationRequest", "Condition", "Immunization"). Hybrid search (BM25+Vector) will ensure comprehensive retrieval.
+         → If results seem incomplete (< 3 chunks returned), ESCALATE: retry with include_full_json=True
       3. IF specific lookup (e.g. "What is the result of..."):
          → Call search_patient_records with specific query.
       4. IF specific date lookup (e.g. "Weight on 2010-12-07"):
-         → Call search_patient_records with query="Observation [Date]" AND include_full_json=True to ensure the specific date is in context.
+         → Call search_patient_records with query="Observation [Date]"
+         → If the specific date is not found in chunks, ESCALATE: retry with include_full_json=True
 
     For evidence/protocol questions:
       1. Start with search_pubmed
@@ -152,19 +154,19 @@ researcher:
 
     PATTERN: "What are the patient's conditions?" or "health status" or "medical history"
     → DECOMPOSE INTO:
-      1. search_patient_records(query="Condition", include_full_json=True)
-      2. search_patient_records(query="MedicationRequest", include_full_json=True)
+      1. search_patient_records(query="Condition", k_chunks=30)
+      2. search_patient_records(query="MedicationRequest", k_chunks=30)
       3. search_patient_records(query="Observation vital-signs", k_chunks=5)
 
     PATTERN: "Tell me about the patient's diabetes/hypertension/[specific condition]"
     → DECOMPOSE INTO:
-      1. search_patient_records(query="Condition [specific]", include_full_json=True)
+      1. search_patient_records(query="Condition [specific]")
       2. search_patient_records(query="MedicationRequest") - for related medications
       3. search_patient_records(query="Observation", k_chunks=5) - for related labs/vitals
 
     PATTERN: "What medications is the patient taking?"
     → ALSO CONSIDER:
-      1. search_patient_records(query="MedicationRequest", include_full_json=True)
+      1. search_patient_records(query="MedicationRequest", k_chunks=30)
       2. cross_reference_meds() if multiple medications found - check for interactions
 
     SINGLE QUERIES (no decomposition needed):
@@ -376,8 +378,9 @@ researcher:
     - If search returns data but you cannot parse it, say "Data found but could not extract specific values"
 
     RETRIEVAL GUIDANCE:
-    - Use include_full_json=True when dates or complete records are needed
-    - Default k_chunks=10 is usually sufficient
+    - Default to include_full_json=False (chunks from hybrid search are usually sufficient)
+    - For "list all" or broad queries, use k_chunks=30 for better coverage
+    - ESCALATION: If initial search returns < 3 results or misses expected data, retry with include_full_json=True
     - Include the FHIR resource type in your query for better results (e.g., "Condition active" not just "active")
 
     ---
@@ -391,14 +394,14 @@ researcher:
     - The system automatically filters to the correct patient
     - Just focus on your clinical query
 
-    ### EXAMPLE 1 - List Request (include_full_json=True)
+    ### EXAMPLE 1 - List Request (chunks with higher k)
 
     **User:** "List all active conditions for this patient"
 
-    **Reasoning:** User wants a complete list. Patient filtering is automatic.
+    **Reasoning:** User wants a complete list. Use k_chunks=30 for broad coverage. Patient filtering is automatic.
 
     **Tool Call:**
-    search_patient_records(query="Condition active", k_chunks=20, include_full_json=True)
+    search_patient_records(query="Condition active", k_chunks=30)
 
     **Tool Response:**
     {"success": true, "query": "Condition active", "chunks": [{"id": "cond-001", "content": "Condition: [CONDITION_A], clinicalStatus: active, code: [CODE_A]", "score": 0.94, "metadata": {"resource_type": "Condition"}}, {"id": "cond-002", "content": "Condition: [CONDITION_B], clinicalStatus: active, code: [CODE_B]", "score": 0.91, "metadata": {"resource_type": "Condition"}}], "count": 2}
@@ -422,7 +425,7 @@ researcher:
     **Reasoning:** User is asking for a specific observation. Patient filtering is automatic.
 
     **Tool Call:**
-    search_patient_records(query="Observation weight 2010-12-07", k_chunks=10, include_full_json=True)
+    search_patient_records(query="Observation weight 2010-12-07")
 
     **Tool Response:**
     {"success": true, "query": "Observation weight 2010-12-07", "chunks": [{"id": "obs-weight-2010-001", "content": "Observation: Body Weight, effectiveDateTime: 2010-12-07T12:37:48, value: 75.3 kg", "score": 0.97, "metadata": {"resource_type": "Observation"}}], "count": 1}
@@ -441,7 +444,7 @@ researcher:
     **Reasoning:** User mentioned Warfarin, but I should verify the patient's complete medication list first.
 
     **Step 1 - Get current medications:**
-    search_patient_records(query="MedicationRequest active", k_chunks=20, include_full_json=True)
+    search_patient_records(query="MedicationRequest active", k_chunks=30)
 
     **Step 1 Response:**
     {"success": true, "chunks": [{"id": "med-001", "content": "MedicationRequest: Warfarin 5mg daily", "score": 0.95}, {"id": "med-002", "content": "MedicationRequest: Lisinopril 10mg daily", "score": 0.89}, {"id": "med-003", "content": "MedicationRequest: Metformin 500mg twice daily", "score": 0.87}], "count": 3}
@@ -475,7 +478,7 @@ researcher:
     **Reasoning:** User wants active conditions. Patient filtering is automatic.
 
     **Tool Call:**
-    search_patient_records(query="Condition active", k_chunks=20, include_full_json=True)
+    search_patient_records(query="Condition active", k_chunks=30)
 
     **Tool Response:**
     {"success": true, "chunks": [
@@ -1171,17 +1174,19 @@ fragments:
     ## FHIR JSON RETRIEVAL CRITERIA
     ---
 
-    Use include_full_json=True for:
-    - **List/Summary requests**: "List all...", "Show every...", "What are the..."
-    - **Specific date lookups**: When user asks about a specific date
-    - **Timeline/history queries**: Progression, trends, "over time"
-    - **Negation queries**: "Has patient ever had X?" (vectors miss negatives)
-    - **Low result count**: < 3 chunks returned
+    Default to include_full_json=False. Hybrid search chunks are sufficient for most queries.
+    For broader coverage, increase k_chunks (e.g., k_chunks=30) instead of using include_full_json.
 
-    Use include_full_json=False for:
+    Use include_full_json=True ONLY as an ESCALATION when:
+    - **Initial search returned < 3 results** and you expected more
+    - **Specific date not found** in chunk results
+    - **Negation queries**: "Has patient ever had X?" where you need exhaustive coverage
+    - **Data seems incomplete** after first retrieval attempt
+
+    Do NOT use include_full_json=True for:
+    - First retrieval attempt (try chunks first)
     - Simple fact lookups (single value)
-    - Code validation queries
-    - Presence confirmation
+    - Queries where k_chunks=30 provides sufficient coverage
 
   # Confidence scoring methodology
   confidence_scoring: |

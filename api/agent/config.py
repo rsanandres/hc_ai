@@ -57,7 +57,7 @@ def get_llm(model_tier: str | None = None) -> Any:
                 "max_tokens": max_tokens,
             },
             config=BotoConfig(
-                read_timeout=60,
+                read_timeout=120,
                 connect_timeout=10,
                 retries={"max_attempts": 2},
             ),
