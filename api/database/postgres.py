@@ -49,7 +49,7 @@ POSTGRES_HOST = os.environ.get("DB_HOST", "localhost")
 POSTGRES_PORT = os.environ.get("DB_PORT", "5432")
 POSTGRES_DB = os.environ.get("DB_NAME")
 
-RERANKER_SERVICE_URL = os.environ.get("RERANKER_SERVICE_URL") or os.environ.get("API_BASE_URL")
+RERANKER_SERVICE_URL = os.environ.get("RERANKER_SERVICE_URL") or os.environ.get("API_BASE_URL") or "http://localhost:8000"
 
 TABLE_NAME = "hc_ai_table"
 # mxbai-embed-large:latest produces 1024-dimensional embeddings

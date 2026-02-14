@@ -163,9 +163,7 @@ def _get_reranker() -> Reranker:
 def _reranker_url(path: str) -> str:
     """Get reranker URL with path - unified API endpoint on port 8000."""
     # Prefer explicit reranker URL, fallback to API base (unified API on port 8000)
-    api_base = os.getenv("RERANKER_SERVICE_URL") or os.getenv("API_BASE_URL")
-    if not api_base:
-        raise RuntimeError("RERANKER_SERVICE_URL or API_BASE_URL must be set")
+    api_base = os.getenv("RERANKER_SERVICE_URL") or os.getenv("API_BASE_URL") or "http://localhost:8000"
     api_base = api_base.rstrip("/")
     # If caller already included /retrieval, honor it
     if "/retrieval" in api_base:
