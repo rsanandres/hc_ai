@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import uuid
 from typing import Any, Dict, List, Optional
 
-import requests
 from langchain_core.tools import tool
 
 from api.agent.pii_masker.factory import create_pii_masker
@@ -19,7 +19,7 @@ from api.agent.tools.schemas import (
     SessionContextResponse,
     TimelineResponse,
 )
-from api.agent.tools.retrieval import _reranker_url, detect_resource_type_from_query
+from api.agent.tools.retrieval import detect_resource_type_from_query
 from api.agent.tools.context import get_patient_context
 
 _pii_masker = create_pii_masker()
@@ -30,43 +30,13 @@ def _mask_content(text: str) -> str:
     return masked
 
 
-def _call_reranker(
-    query: str,
-    k_retrieve: int = 50,
-    k_return: int = 10,
-    filter_metadata: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
-    payload = {
-        "query": query,
-        "k_retrieve": k_retrieve,
-        "k_return": k_return,
-        "filter_metadata": filter_metadata,
-    }
-    response = requests.post(_reranker_url("rerank"), json=payload, timeout=120)
-    response.raise_for_status()
-    data = response.json()
-    results = data.get("results", [])
-    masked_results = []
-    for item in results:
-        content = item.get("content", "")
-        masked_results.append(
-            {
-                "id": item.get("id", ""),
-                "content": _mask_content(content),
-                "metadata": item.get("metadata", {}),
-                "score": item.get("score", 0.0),
-            }
-        )
-    return masked_results
-
-
 @tool
-def search_clinical_notes(
+async def search_clinical_notes(
     query: str,
     k_retrieve: int = 50,
     k_return: int = 10,
     patient_id: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Search clinical notes for relevant context.
 
@@ -76,6 +46,8 @@ def search_clinical_notes(
         k_return: Number of results to return after reranking
         patient_id: Patient UUID (auto-injected from context)
     """
+    from api.database.postgres import hybrid_search
+
     # ALWAYS use patient_id from context when available
     context_patient_id = get_patient_context()
     if context_patient_id:
@@ -100,27 +72,38 @@ def search_clinical_notes(
                 success=False,
                 error=f"Invalid patient_id format. Must be a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx), got: {patient_id}",
             ).model_dump()
-        filter_metadata = {"patient_id": patient_id}
+        filter_metadata: Optional[Dict[str, Any]] = {"patient_id": patient_id}
         if detected_resource_type:
             filter_metadata["resource_type"] = detected_resource_type
             print(f"[CLINICAL_NOTES] Auto-detected resource_type: {detected_resource_type}")
     else:
         filter_metadata = {"resource_type": detected_resource_type} if detected_resource_type else None
 
-    results = _call_reranker(query, k_retrieve, k_return, filter_metadata=filter_metadata)
-    return RetrievalResponse(
-        query=query,
-        chunks=[
-            ChunkResult(
-                id=str(item.get("id", "")),
-                content=str(item.get("content", "")),
-                score=float(item.get("score", 0.0)),
-                metadata=item.get("metadata", {}) or {},
-            )
-            for item in results
-        ],
-        count=len(results),
-    ).model_dump()
+    # Direct DB + reranker (no self-referencing HTTP)
+    candidates = await hybrid_search(
+        query, k=k_retrieve, filter_metadata=filter_metadata,
+        bm25_weight=0.5, semantic_weight=0.5,
+    )
+
+    if not candidates:
+        return RetrievalResponse(query=query, chunks=[], count=0).model_dump()
+
+    # Get or create reranker singleton
+    from api.agent.tools.retrieval import _get_reranker
+    reranker = _get_reranker()
+    scored = await asyncio.to_thread(reranker.rerank_with_scores, query, candidates)
+    top_docs = scored[:k_return]
+
+    chunks = [
+        ChunkResult(
+            id=str(getattr(doc, "id", "")),
+            content=_mask_content(doc.page_content),
+            score=score,
+            metadata=doc.metadata or {},
+        )
+        for doc, score in top_docs
+    ]
+    return RetrievalResponse(query=query, chunks=chunks, count=len(chunks)).model_dump()
 
 
 @tool
