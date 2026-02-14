@@ -55,13 +55,14 @@ export default function Home() {
   const SEARCH_TOOLS = ['search_clinical_notes', 'get_patient_timeline'];
 
   // Start workflow when sending a message
-  const handleSend = (message: string) => {
+  // patientIdOverride bypasses React state race condition (e.g. from WelcomeScreen)
+  const handleSend = (message: string, patientIdOverride?: string) => {
     setLastQuery(message);
     setChatInput('');
     activatedStepsRef.current = new Set();
     resetPipeline();
     activateStep('query');
-    sendMessage(message);
+    sendMessage(message, patientIdOverride);
   };
 
   // Drive pipeline steps from real SSE streaming events
@@ -120,8 +121,9 @@ export default function Home() {
   const handleWelcomeStart = (patient: { id: string; name: string }, prompt: string) => {
     setSelectedPatient(patient);
     setReferencePanelCollapsed(true); // Switch right panel to Pipeline tab
-    // Delay send slightly so patient context is set before the message fires
-    setTimeout(() => handleSend(prompt), 50);
+    // Pass patient.id directly to avoid race condition where React state
+    // hasn't re-rendered before sendMessage captures the old patientId
+    setTimeout(() => handleSend(prompt, patient.id), 50);
   };
 
   // Handle prompt selection from reference panel — send immediately and collapse

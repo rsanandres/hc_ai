@@ -150,7 +150,10 @@ export function useChat(sessionId?: string, patientId?: string) {
     setStreamingState({ ...initialStreamingState });
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, patientIdOverride?: string) => {
+    // patientIdOverride takes precedence — avoids race condition when React state
+    // hasn't re-rendered yet (e.g. WelcomeScreen sets patient then immediately sends)
+    const effectivePatientId = patientIdOverride || patientId;
     if (!content.trim() || isLoading) return;
 
     // Check agent service health before sending message
@@ -251,7 +254,7 @@ export function useChat(sessionId?: string, patientId?: string) {
           query: content.trim(),
           session_id: sessionToUse,
           user_id: userId,
-          patient_id: patientId,
+          patient_id: effectivePatientId,
         },
         {
           onStatus: (message) => {

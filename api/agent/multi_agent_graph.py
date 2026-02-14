@@ -6,7 +6,7 @@ import os
 import json
 from typing import Any, Dict, List, Optional, TypedDict
 
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent as create_agent
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, StateGraph
 

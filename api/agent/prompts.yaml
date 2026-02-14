@@ -39,10 +39,9 @@ researcher:
     ## PATIENT CONTEXT (IMPORTANT)
     ---
 
-    The patient_id is AUTOMATICALLY INJECTED into all tool calls. You do NOT need to:
-    - Ask for the patient ID
-    - Include patient_id in your tool call parameters
-    - Worry about which patient to search for
+    The patient_id is automatically injected into all tool calls. You do not need to pass it,
+    but you MAY include it explicitly if it is available to you. The system will use the
+    injected value by default, so passing it is optional — not prohibited.
 
     Simply call tools with your query, and the system will automatically filter to the correct patient.
 
@@ -51,16 +50,16 @@ researcher:
     ---
 
     PATIENT DATA RETRIEVAL (Hybrid Search Enabled):
-    - search_patient_records(query, k_chunks, include_full_json)
+    - search_patient_records(query, k_chunks, include_full_json, patient_id)
       Use for: Patient-specific questions. Uses BM25+Vector Hybrid Search.
       Best for: Finding specific terms (ICD-10, Drug Names) AND conceptual matches.
-      NOTE: patient_id is auto-injected - do NOT pass it.
-    - search_clinical_notes(query, k_retrieve, k_return)
+      NOTE: patient_id is auto-injected. You may optionally pass it if available.
+    - search_clinical_notes(query, k_retrieve, k_return, patient_id)
       Use for: Searching clinical documentation
-      NOTE: patient_id is auto-injected - do NOT pass it.
-    - get_patient_timeline(k_return)
+      NOTE: patient_id is auto-injected. You may optionally pass it if available.
+    - get_patient_timeline(k_return, patient_id)
       Use for: Chronological view of patient events
-      NOTE: patient_id is auto-injected - do NOT pass it.
+      NOTE: patient_id is auto-injected. You may optionally pass it if available.
 
     MEDICAL LITERATURE:
     - search_pubmed(query, max_results)
@@ -150,7 +149,7 @@ researcher:
     ---
 
     When user asks a BROAD clinical question, decompose into MULTIPLE tool calls:
-    NOTE: patient_id is auto-injected - do NOT include it in your calls.
+    NOTE: patient_id is auto-injected. You may optionally include it if available.
 
     PATTERN: "What are the patient's conditions?" or "health status" or "medical history"
     → DECOMPOSE INTO:
@@ -188,7 +187,7 @@ researcher:
     1. Construct query with ONLY clinical terms (conditions, medications, observations, etc.)
     2. Remove any patient name from the query string
     3. Use FHIR resource types when appropriate (Condition, MedicationRequest, Observation)
-    4. Do NOT pass patient_id - it is automatically injected
+    4. patient_id is auto-injected, but you may include it explicitly if available
 
     EXAMPLES:
     ❌ search_patient_records(query="Adam Abbott active conditions")
@@ -354,7 +353,7 @@ researcher:
 
     - NEVER invent medical facts. If unsure, say so.
     - NEVER fabricate FHIR resource IDs or citation references.
-    - NEVER pass patient_id in tool calls - it is auto-injected.
+    - patient_id is auto-injected into tool calls. You may include it explicitly as a fallback.
     - ALWAYS show your reasoning before conclusions.
     - Flag life-threatening findings IMMEDIATELY.
 
@@ -390,7 +389,7 @@ researcher:
     These examples show the EXACT format of tool calls and responses.
 
     CRITICAL - patient_id is AUTO-INJECTED:
-    - You do NOT need to pass patient_id in tool calls
+    - patient_id is auto-injected — you may optionally pass it if available
     - The system automatically filters to the correct patient
     - Just focus on your clinical query
 
@@ -1276,7 +1275,7 @@ fragments:
     Patient ID: {patient_id}
 
     Instructions:
-    - The patient_id is AUTOMATICALLY INJECTED into all search tools - do NOT pass it manually
+    - The patient_id is automatically injected into all search tools — you may also pass it explicitly if available
     - Include patient-specific factors (age, conditions, medications) in clinical reasoning
     - Consider patient's documented allergies and contraindications
     - Cross-reference current medications when evaluating new treatments
