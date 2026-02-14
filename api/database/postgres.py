@@ -347,9 +347,15 @@ async def initialize_vector_store() -> PGVectorStore:
         embedding_service=embedding,
     )
 
-    # Initialize queue persistence & worker
-    await init_queue_storage(QUEUE_PERSIST_PATH)
-    await start_queue_worker()
+    # Initialize queue persistence & worker (non-fatal — search doesn't need it)
+    try:
+        await init_queue_storage(QUEUE_PERSIST_PATH)
+        await start_queue_worker()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Queue storage init failed (search still works): {e}"
+        )
     
     return _vector_store
 
