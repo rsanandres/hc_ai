@@ -243,7 +243,7 @@ async def search_patient_records(
 
         payload = {
             "query": cleaned_query,
-            "k_retrieve": max(k_chunks * 4, 20),
+            "k_retrieve": k_chunks,
             "k_return": k_chunks,
         }
         filter_metadata = {"patient_id": patient_id}
@@ -257,7 +257,7 @@ async def search_patient_records(
 
         payload = {
             "query": cleaned_query,
-            "k_retrieve": max(k_chunks * 4, 20),
+            "k_retrieve": k_chunks,
             "k_return": k_chunks,
         }
         if detected_resource_type:
