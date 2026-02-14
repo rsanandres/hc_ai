@@ -92,6 +92,10 @@ RESOURCE_TYPE_KEYWORDS = {
         "report", "reports", "diagnostic", "diagnostics", "imaging",
         "radiology", "xray", "x-ray", "mri", "ct scan", "ultrasound",
     ],
+    "AllergyIntolerance": [
+        "allergy", "allergies", "allergic", "intolerance", "intolerances",
+        "allergen", "allergens", "hypersensitivity", "anaphylaxis",
+    ],
 }
 
 
@@ -245,7 +249,7 @@ async def search_patient_records(
     if include_full_json:
         payload["include_full_json"] = True
     path = "/rerank/with-context" if include_full_json else "/rerank"
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=120) as client:
         response = await client.post(_reranker_url(path), json=payload)
         response.raise_for_status()
         data = response.json()
