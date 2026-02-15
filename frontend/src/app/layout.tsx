@@ -14,9 +14,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const description = 'Healthcare AI powered by retrieval-augmented generation with Claude 3.5 Sonnet & Haiku';
+
 export const metadata: Metadata = {
-  title: "Atlas | RAG Agent Dashboard",
-  description: "Healthcare AI powered by retrieval-augmented generation with Claude 3.5 Sonnet & Haiku",
+  metadataBase: new URL('https://hcai.rsanandres.com'),
+  title: 'HC AI — Healthcare RAG Demo by Raphael San Andres',
+  description,
+  openGraph: {
+    title: 'HC AI — Healthcare RAG Demo',
+    description,
+    url: 'https://hcai.rsanandres.com',
+    siteName: 'HC AI',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'HC AI — Healthcare RAG Demo',
+    description,
+  },
 };
 
 export default function RootLayout({

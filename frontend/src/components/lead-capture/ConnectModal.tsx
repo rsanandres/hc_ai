@@ -3,15 +3,12 @@ import { Box, Typography, Button, Modal, IconButton, alpha, Tooltip } from '@mui
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Linkedin, Mail, Sparkles, ExternalLink, Github, Copy, Check } from 'lucide-react';
 import { glassStyle } from '@/theme/theme';
+import { MY_EMAIL, MY_LINKEDIN, MY_GITHUB } from '@/data/constants';
 
 interface ConnectModalProps {
   open: boolean;
   onClose: () => void;
 }
-
-const MY_EMAIL = 'rysanandres@gmail.com';
-const MY_LINKEDIN = 'https://www.linkedin.com/in/raphael-san-andres/';
-const MY_GITHUB = 'https://github.com/rsanandres';
 
 export function ConnectModal({ open, onClose }: ConnectModalProps) {
   const [copied, setCopied] = useState(false);

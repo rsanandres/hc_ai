@@ -79,14 +79,11 @@ export function OnboardingTour({ forceShow, onDismiss }: OnboardingTourProps) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
-  // Show tour on first visit (not yet completed in localStorage)
+  // Show tour every visit so repeat visitors and demo audiences always see it
   useEffect(() => {
     if (forceShow) return;
-    const completed = localStorage.getItem(STORAGE_KEY);
-    if (!completed) {
-      const timer = setTimeout(() => setVisible(true), 600);
-      return () => clearTimeout(timer);
-    }
+    const timer = setTimeout(() => setVisible(true), 1000);
+    return () => clearTimeout(timer);
   }, [forceShow]);
 
   // React to forceShow changes (e.g., help button clicked)
