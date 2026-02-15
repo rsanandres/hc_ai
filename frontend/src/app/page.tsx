@@ -34,7 +34,6 @@ export default function Home() {
     metricSummaries,
     rerankerStats,
     databaseStats,
-    cloudWatchTimeSeries,
     lastUpdated,
     refreshData,
     isLoading: obsLoading,
@@ -193,7 +192,6 @@ export default function Home() {
             metricSummaries={metricSummaries}
             rerankerStats={rerankerStats}
             databaseStats={databaseStats}
-            cloudWatchTimeSeries={cloudWatchTimeSeries}
             lastUpdated={lastUpdated}
             onRefresh={refreshData}
             isLoading={obsLoading}

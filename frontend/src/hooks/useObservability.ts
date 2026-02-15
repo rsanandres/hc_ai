@@ -10,7 +10,8 @@ import {
   getErrorCounts,
   getCloudWatchMetrics,
 } from '@/services/agentApi';
-import { CloudWatchMetric, CloudWatchTimeSeries, MetricSummary, RerankerStats, CostBreakdown } from '@/types/observability';
+import { CloudWatchMetric, CloudWatchTimeSeries, MetricSummary, CostBreakdown } from '@/types/observability';
+import type { RerankerStats } from '@/types/observability';
 import { ServiceHealth } from '@/types';
 
 const REFRESH_INTERVAL = 5000; // 5 seconds for real-time updates
@@ -36,7 +37,6 @@ export interface DatabaseStats {
 function getInitialData() {
   return {
     cloudWatchMetrics: [] as CloudWatchMetric[],
-    cloudWatchTimeSeries: [] as CloudWatchTimeSeries[],
     rerankerStats: null as RerankerStats | null,
     databaseStats: null as DatabaseStats | null,
     serviceHealth: [] as ServiceHealth[],
@@ -127,70 +127,9 @@ export function useObservability() {
         });
       }
 
-      // Calculate metric summaries from available data
-      const metricSummaries: MetricSummary[] = [];
-      if (stats) {
-        const totalRequests = stats.cache_hits + stats.cache_misses;
-        const hitRate = totalRequests > 0 ? (stats.cache_hits / totalRequests) * 100 : 0;
-
-        metricSummaries.push(
-          {
-            label: 'Cache Hit Rate',
-            value: `${hitRate.toFixed(1)}%`,
-            unit: '%',
-          },
-          {
-            label: 'Cache Size',
-            value: stats.cache_size,
-            unit: 'items',
-          },
-          {
-            label: 'Total Requests',
-            value: totalRequests,
-            unit: 'requests',
-          }
-        );
-      }
-
-      // Add database metrics
-      if (databaseStats && !databaseStats.error) {
-        metricSummaries.push(
-          {
-            label: 'DB Connections',
-            value: `${databaseStats.active_connections || 0}/${databaseStats.max_connections || 100}`,
-            unit: 'active',
-          },
-          {
-            label: 'Queue Size',
-            value: databaseStats.queue_size || 0,
-            unit: 'chunks',
-          }
-        );
-        // Add queue stats if available
-        if (databaseStats.queue_stats) {
-          metricSummaries.push({
-            label: 'Processed',
-            value: databaseStats.queue_stats.processed || 0,
-            unit: 'chunks',
-          });
-        }
-      }
-
-      // Add error counts
-      if (errors && !errors.error && errors.total_errors !== undefined) {
-        metricSummaries.push({
-          label: 'Errors',
-          value: errors.total_errors || 0,
-          unit: 'total',
-        });
-      }
-
-      // Calculate cost breakdown (placeholder - would need actual cost data)
-      const costBreakdown: CostBreakdown[] = [];
-
       // CloudWatch time-series from backend
       const cwData = cwMetrics.status === 'fulfilled' ? cwMetrics.value : null;
-      const cloudWatchTimeSeries: CloudWatchTimeSeries[] =
+      const cwTimeSeries: CloudWatchTimeSeries[] =
         cwData?.metrics?.map((m: CloudWatchTimeSeries) => ({
           id: m.id,
           namespace: m.namespace,
@@ -201,12 +140,91 @@ export function useObservability() {
           latest: m.latest,
         })) ?? [];
 
+      const findCW = (id: string) => cwTimeSeries.find(m => m.id === id);
+
+      // Helper: compute trend from a time-series
+      const computeTrend = (values: number[]): { change: number; changeType: 'increase' | 'decrease' | 'neutral' } => {
+        if (values.length < 2) return { change: 0, changeType: 'neutral' };
+        const recent = values[values.length - 1];
+        // Compare latest value to the average of the first quarter for stability
+        const firstQuarter = values.slice(0, Math.max(1, Math.floor(values.length / 4)));
+        const baseline = firstQuarter.reduce((a, b) => a + b, 0) / firstQuarter.length;
+        if (baseline === 0) return { change: 0, changeType: 'neutral' };
+        const pctChange = ((recent - baseline) / baseline) * 100;
+        return {
+          change: Math.abs(pctChange),
+          changeType: pctChange > 1 ? 'increase' : pctChange < -1 ? 'decrease' : 'neutral',
+        };
+      };
+
+      // Format a CloudWatch latest value for display
+      const fmtValue = (v: number | null | undefined, unit: string): string => {
+        if (v == null) return '--';
+        if (unit === '%') return `${v.toFixed(1)}%`;
+        if (unit === 's') return v < 1 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)}s`;
+        if (unit === 'count') return v >= 1000 ? `${(v / 1000).toFixed(1)}K` : `${Math.round(v)}`;
+        return `${v}`;
+      };
+
+      // Build CloudWatch-backed metric cards
+      const metricSummaries: MetricSummary[] = [];
+      const ecsCpu = findCW('ecs_cpu');
+      const ecsMem = findCW('ecs_memory');
+      const albReq = findCW('alb_requests');
+      const rdsCpu = findCW('rds_cpu');
+      const rdsConn = findCW('rds_connections');
+      const albP99 = findCW('alb_p99');
+
+      const hasCW = cwTimeSeries.length > 0;
+
+      if (hasCW) {
+        const cards: { ts: CloudWatchTimeSeries | undefined; label: string; unit: string; color: string }[] = [
+          { ts: ecsCpu, label: 'ECS CPU', unit: '%', color: '#14b8a6' },
+          { ts: ecsMem, label: 'ECS Memory', unit: '%', color: '#8b5cf6' },
+          { ts: albReq, label: 'ALB Requests', unit: 'count', color: '#3b82f6' },
+          { ts: rdsCpu, label: 'RDS CPU', unit: '%', color: '#14b8a6' },
+          { ts: rdsConn, label: 'RDS Connections', unit: 'count', color: '#8b5cf6' },
+          { ts: albP99, label: 'p99 Latency', unit: 's', color: '#ef4444' },
+        ];
+        for (const card of cards) {
+          if (!card.ts) continue;
+          const trend = computeTrend(card.ts.values);
+          metricSummaries.push({
+            label: card.label,
+            value: fmtValue(card.ts.latest, card.unit),
+            unit: card.unit === '%' ? '%' : card.unit === 's' ? 'ms/s' : card.unit,
+            sparklineData: card.ts.values,
+            color: card.color,
+            ...trend,
+          });
+        }
+      } else {
+        // Fallback: use reranker/DB stats when CloudWatch is unavailable
+        if (stats) {
+          const totalRequests = stats.cache_hits + stats.cache_misses;
+          const hitRate = totalRequests > 0 ? (stats.cache_hits / totalRequests) * 100 : 0;
+          metricSummaries.push(
+            { label: 'Cache Hit Rate', value: `${hitRate.toFixed(1)}%`, unit: '%' },
+            { label: 'Cache Size', value: stats.cache_size, unit: 'items' },
+            { label: 'Total Requests', value: totalRequests, unit: 'requests' },
+          );
+        }
+        if (databaseStats && !databaseStats.error) {
+          metricSummaries.push(
+            { label: 'DB Connections', value: `${databaseStats.active_connections || 0}/${databaseStats.max_connections || 100}`, unit: 'active' },
+            { label: 'Queue Size', value: databaseStats.queue_size || 0, unit: 'chunks' },
+          );
+        }
+      }
+
+      // Calculate cost breakdown (placeholder - would need actual cost data)
+      const costBreakdown: CostBreakdown[] = [];
+
       // Legacy flat metrics (kept for backward compat)
       const cloudWatchMetrics: CloudWatchMetric[] = [];
 
       setData({
         cloudWatchMetrics,
-        cloudWatchTimeSeries,
         rerankerStats: stats,
         databaseStats: databaseStats && !databaseStats.error ? databaseStats : null,
         serviceHealth,
@@ -269,7 +287,6 @@ export function useObservability() {
 
   return {
     cloudWatchMetrics: data.cloudWatchMetrics,
-    cloudWatchTimeSeries: data.cloudWatchTimeSeries,
     rerankerStats: data.rerankerStats,
     databaseStats: data.databaseStats,
     serviceHealth: data.serviceHealth,

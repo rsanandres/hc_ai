@@ -25,6 +25,7 @@ export interface MetricSummary {
   changeType?: 'increase' | 'decrease' | 'neutral';
   unit?: string;
   sparklineData?: number[];
+  color?: string;
 }
 
 // Cost breakdown for pie chart

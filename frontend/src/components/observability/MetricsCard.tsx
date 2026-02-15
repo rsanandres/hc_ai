@@ -12,22 +12,22 @@ interface MetricsCardProps {
 }
 
 // Memoized sparkline to prevent re-renders
-const Sparkline = memo(function Sparkline({ data, index }: { data: number[]; index: number }) {
+const Sparkline = memo(function Sparkline({ data, index, color = '#14b8a6' }: { data: number[]; index: number; color?: string }) {
   const chartData = useMemo(() => data.map((value, i) => ({ value, index: i })), [data]);
-  
+
   return (
     <Box sx={{ width: 50, height: 24, opacity: 0.7 }}>
       <AreaChart width={50} height={24} data={chartData}>
         <defs>
           <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
+            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#14b8a6"
+          stroke={color}
           strokeWidth={1.5}
           fill={`url(#gradient-${index})`}
           isAnimationActive={false}
@@ -87,7 +87,7 @@ export const MetricsCard = memo(function MetricsCard({ metric, index }: MetricsC
         </Box>
         
         {metric.sparklineData && metric.sparklineData.length > 0 && (
-          <Sparkline data={metric.sparklineData} index={index} />
+          <Sparkline data={metric.sparklineData} index={index} color={metric.color} />
         )}
       </Box>
     </Box>
