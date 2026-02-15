@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Button, IconButton, alpha, useTheme, useMediaQuery } from '@mui/material';
-import { X, ChevronRight, ChevronLeft, MessageSquare, Workflow, Activity, Users, Bug, Clock } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, MessageSquare, Workflow, Activity, Users, Bug, Clock, FileText } from 'lucide-react';
 
 const STORAGE_KEY = 'hcai-tour-completed';
 
@@ -31,6 +31,12 @@ const TOUR_STEPS: TourStep[] = [
     description: 'Browse featured patients, switch between patients, and pick from recommended questions.',
     icon: Users,
     target: 'workflow',
+  },
+  {
+    title: 'View Patient Data',
+    description: 'Click the document icon next to a patient\'s name — in the sidebar or the chat header — to browse their full FHIR record: conditions, medications, labs, encounters, and raw JSON.',
+    icon: FileText,
+    target: 'chat',
   },
   {
     title: 'Pipeline View',
