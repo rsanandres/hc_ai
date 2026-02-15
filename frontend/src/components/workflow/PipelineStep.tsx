@@ -61,7 +61,7 @@ const getVal = (details: Record<string, unknown> | undefined, key: string): numb
 };
 
 // Format a numeric value with suffix, or return null if value is null
-const fmtMs = (val: number | null): string | null => val !== null ? `${val}ms` : null;
+const fmtMs = (val: number | null): string | null => val !== null ? `${(val / 1000).toFixed(1)}s` : null;
 const fmtChars = (val: number | null): string | null => val !== null ? `${val} chars` : null;
 
 // Generate step details using real data where available
@@ -299,7 +299,7 @@ export function PipelineStep({ step, isLast, queryText, details }: PipelineStepP
             variant="caption"
             sx={{ color: 'success.main', fontWeight: 500, ml: canExpand ? 2.5 : 0 }}
           >
-            {step.duration}ms
+            {(step.duration / 1000).toFixed(1)}s
           </Typography>
         )}
       </Box>

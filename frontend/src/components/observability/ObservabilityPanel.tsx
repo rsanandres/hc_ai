@@ -1,12 +1,10 @@
 'use client';
 
-import { Box, Typography, IconButton, Tooltip, Grid, alpha, Divider, Skeleton } from '@mui/material';
+import { Box, Typography, IconButton, Tooltip, Grid, alpha, Skeleton } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Activity, RefreshCw, Layers, HardDrive, Database } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, PieChart, Pie, Cell } from 'recharts';
+import { Activity, RefreshCw } from 'lucide-react';
 import { ServiceHealth } from '@/types';
-import { MetricSummary, RerankerStats } from '@/types/observability';
-import { DatabaseStats } from '@/hooks/useObservability';
+import { MetricSummary } from '@/types/observability';
 import { HealthIndicator } from './HealthIndicator';
 import { MetricsCard } from './MetricsCard';
 import { glassStyle } from '@/theme/theme';
@@ -14,8 +12,6 @@ import { glassStyle } from '@/theme/theme';
 interface ObservabilityPanelProps {
   serviceHealth: ServiceHealth[];
   metricSummaries: MetricSummary[];
-  rerankerStats: RerankerStats | null;
-  databaseStats: DatabaseStats | null;
   lastUpdated: Date;
   onRefresh: () => void;
   isLoading: boolean;
@@ -24,8 +20,6 @@ interface ObservabilityPanelProps {
 export function ObservabilityPanel({
   serviceHealth,
   metricSummaries,
-  rerankerStats,
-  databaseStats,
   lastUpdated,
   onRefresh,
   isLoading,
@@ -37,22 +31,6 @@ export function ObservabilityPanel({
   const healthColor = overallHealth === 'healthy' ? 'success.main' :
                       overallHealth === 'degraded' ? 'warning.main' : 'error.main';
 
-  // Prepare reranker cache data for pie chart
-  const cacheData = rerankerStats ? [
-    { name: 'Hits', value: rerankerStats.cache_hits, color: '#14b8a6' },
-    { name: 'Misses', value: rerankerStats.cache_misses, color: '#f59e0b' },
-  ] : [];
-
-  // Prepare database pool data for bar chart
-  const poolData = databaseStats ? [
-    { name: 'Active', value: databaseStats.active_connections || 0 },
-    { name: 'Pool Out', value: databaseStats.pool_checked_out || 0 },
-    { name: 'Pool In', value: databaseStats.pool_checked_in || 0 },
-    { name: 'Queue', value: databaseStats.queue_size || 0 },
-  ] : [];
-
-  // Queue stats for display
-  const queueStats = databaseStats?.queue_stats || { queued: 0, processed: 0, failed: 0, retries: 0 };
 
   return (
     <div style={{ height: '100%' }}>
@@ -150,9 +128,6 @@ export function ObservabilityPanel({
                   </Grid>
                 ))}
               </Grid>
-              <Divider sx={{ my: 2 }} />
-              <Skeleton variant="rounded" height={100} sx={{ borderRadius: '8px', mb: 2 }} />
-              <Skeleton variant="rounded" height={100} sx={{ borderRadius: '8px' }} />
             </Box>
           ) : (
           <>
@@ -182,144 +157,6 @@ export function ObservabilityPanel({
             </Grid>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
-
-          {/* Reranker Cache */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-              <Layers size={12} /> Reranker Cache
-            </Typography>
-            {rerankerStats ? (
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: '8px',
-                  bgcolor: (theme) => alpha(theme.palette.common.white, 0.02),
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {cacheData.length > 0 && (rerankerStats.cache_hits > 0 || rerankerStats.cache_misses > 0) ? (
-                    <ResponsiveContainer width={80} height={80}>
-                      <PieChart>
-                        <Pie
-                          data={cacheData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={25}
-                          outerRadius={35}
-                        >
-                          {cacheData.map((entry) => (
-                            <Cell key={entry.name} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <Box sx={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Typography variant="caption" color="text.disabled">No data</Typography>
-                    </Box>
-                  )}
-                  <Box sx={{ flex: 1, fontSize: '0.7rem' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '2px', bgcolor: '#14b8a6' }} />
-                      <Typography variant="caption" sx={{ flex: 1 }}>Hits</Typography>
-                      <Typography variant="caption" fontWeight={600}>{rerankerStats.cache_hits}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: '2px', bgcolor: '#f59e0b' }} />
-                      <Typography variant="caption" sx={{ flex: 1 }}>Misses</Typography>
-                      <Typography variant="caption" fontWeight={600}>{rerankerStats.cache_misses}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography variant="caption" sx={{ flex: 1 }}>Size</Typography>
-                      <Typography variant="caption" fontWeight={600}>{rerankerStats.cache_size}</Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </Box>
-            ) : (
-              <Typography variant="caption" color="text.disabled">No reranker data</Typography>
-            )}
-          </Box>
-
-          {/* Database Pool */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-              <HardDrive size={12} /> Database Pool
-            </Typography>
-            {databaseStats && poolData.length > 0 ? (
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: '8px',
-                  bgcolor: (theme) => alpha(theme.palette.common.white, 0.02),
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <ResponsiveContainer width="100%" height={100}>
-                  <BarChart data={poolData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} width={25} />
-                    <RechartsTooltip
-                      contentStyle={{
-                        background: '#1a1a24',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 6,
-                        fontSize: '0.7rem',
-                      }}
-                    />
-                    <Bar dataKey="value" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            ) : (
-              <Typography variant="caption" color="text.disabled">No database data</Typography>
-            )}
-          </Box>
-
-          {/* Queue Processing */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-              <Database size={12} /> Queue Processing
-            </Typography>
-            <Box
-              sx={{
-                p: 1.5,
-                borderRadius: '8px',
-                bgcolor: (theme) => alpha(theme.palette.common.white, 0.02),
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <Grid container spacing={1}>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Queued</Typography>
-                  <Typography variant="body2" fontWeight={600}>{queueStats.queued}</Typography>
-                </Grid>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Done</Typography>
-                  <Typography variant="body2" fontWeight={600} color="success.main">{queueStats.processed}</Typography>
-                </Grid>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Failed</Typography>
-                  <Typography variant="body2" fontWeight={600} color={queueStats.failed > 0 ? 'error.main' : 'text.primary'}>
-                    {queueStats.failed}
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>Retries</Typography>
-                  <Typography variant="body2" fontWeight={600} color={queueStats.retries > 0 ? 'warning.main' : 'text.primary'}>
-                    {queueStats.retries}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-          </Box>
 
           </>
           )}

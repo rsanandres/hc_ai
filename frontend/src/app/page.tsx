@@ -32,8 +32,6 @@ export default function Home() {
   const {
     serviceHealth,
     metricSummaries,
-    rerankerStats,
-    databaseStats,
     lastUpdated,
     refreshData,
     isLoading: obsLoading,
@@ -190,8 +188,6 @@ export default function Home() {
           <ObservabilityPanel
             serviceHealth={serviceHealth}
             metricSummaries={metricSummaries}
-            rerankerStats={rerankerStats}
-            databaseStats={databaseStats}
             lastUpdated={lastUpdated}
             onRefresh={refreshData}
             isLoading={obsLoading}

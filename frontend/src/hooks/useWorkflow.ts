@@ -126,6 +126,14 @@ export function useWorkflow() {
     if (!response) return;
 
     const endTime = Date.now();
+
+    // Close timing for any still-active step (typically 'response')
+    Object.values(stepTimings.current).forEach(timing => {
+      if (timing.startTime && !timing.endTime) {
+        timing.endTime = endTime;
+      }
+    });
+
     const totalLatency = processingStartTime.current
       ? endTime - processingStartTime.current
       : 0;
@@ -204,8 +212,7 @@ export function useWorkflow() {
         ...step,
         status: usedSteps.has(step.id) ? 'completed' : 'skipped',
         details: stepDetails[step.id],
-        // Preserve real durations from activateStep; use totalLatency for response
-        duration: step.id === 'response' ? totalLatency : realDuration,
+        duration: realDuration,
       };
     }));
   }, []);

@@ -42,8 +42,8 @@ export const MetricsCard = memo(function MetricsCard({ metric, index }: MetricsC
                      metric.changeType === 'decrease' ? TrendingDown : Minus;
   const ChangeIcon = changeIcon;
   
-  const changeColor = metric.changeType === 'increase' ? 'success.main' :
-                      metric.changeType === 'decrease' ? 'error.main' : 'text.secondary';
+  const changeColor = metric.changeType === 'increase' ? 'primary.main' :
+                      metric.changeType === 'decrease' ? 'secondary.main' : 'text.secondary';
 
   return (
     <Box
