@@ -335,10 +335,16 @@ If you found relevant data, summarize it. If nothing was found, state that clear
 Do NOT make additional tool calls. DO NOT repeat this system message."""))
 
     agent = _get_researcher_agent()
-    
+
     try:
+        print(f"[RESEARCHER] Calling agent.ainvoke with {len(messages)} messages, recursion_limit={max_iterations}")
+        import time as _time
+        _t0 = _time.monotonic()
         result = await agent.ainvoke({"messages": messages}, config={"recursion_limit": max_iterations})
+        _t1 = _time.monotonic()
+        print(f"[RESEARCHER] agent.ainvoke returned in {_t1 - _t0:.1f}s")
         output_messages = result.get("messages", [])
+        print(f"[RESEARCHER] Got {len(output_messages)} output messages")
         response_text = _extract_response_text(output_messages)
     except GraphRecursionError as e:
         print(f"[RESEARCHER] ⚠ Hit internal recursion limit (max_iterations={max_iterations}): {e}")

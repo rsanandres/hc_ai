@@ -182,11 +182,11 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
     async def event_generator():
         result = None
         request_id = str(uuid.uuid4())
-        # print(f"[STREAM {request_id}] === Generator function CALLED ===")
+        print(f"[STREAM {request_id}] === Generator function CALLED ===")
         try:
-            # print(f"[STREAM {request_id}] About to yield first event...")
+            print(f"[STREAM {request_id}] About to yield first event...")
             yield f"data: {json.dumps({'type': 'start', 'message': 'Starting agent...'})}\n\n"
-            # print(f"[STREAM {request_id}] First event yielded")
+            print(f"[STREAM {request_id}] First event yielded")
             
             
             masked_query, _ = _pii_masker.mask_pii(payload.query)
@@ -213,7 +213,7 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
             start_time = asyncio.get_event_loop().time()
             event_count = 0
 
-            # print(f"[STREAM {request_id}] Starting astream_events loop...")
+            print(f"[STREAM {request_id}] Starting astream_events loop...")
 
             # Use astream_events for real-time streaming
             # Keepalive: yield SSE comments to prevent ALB idle timeout during long Bedrock calls
@@ -277,7 +277,7 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
                     # Handle different LangGraph events
                     if event_type == "on_chain_start":
                         # Node starting (researcher, validator, respond, etc.)
-                        # print(f"[STREAM {request_id}] Chain starting: {event_name}")
+                        print(f"[STREAM {request_id}] Chain starting: {event_name}")
                         if "researcher" in event_name.lower():
                             yield f"data: {json.dumps({'type': 'status', 'message': '🔬 Researcher investigating...'})}\n\n"
                         elif "validator" in event_name.lower():
@@ -289,7 +289,7 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
                         # Tool being called
                         tool_name = event_name or event_data.get("name", "unknown_tool")
                         tool_input = event_data.get("input", {})
-                        # print(f"[STREAM {request_id}] Tool starting: {tool_name}")
+                        print(f"[STREAM {request_id}] Tool starting: {tool_name}")
                         yield f"data: {json.dumps({'type': 'tool', 'tool': tool_name, 'input': tool_input})}\n\n"
                         yield f"data: {json.dumps({'type': 'status', 'message': f'🛠️ Using {tool_name}...'})}\n\n"
                     
@@ -297,7 +297,7 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
                         # Tool completed - emit the result
                         tool_name = event_name or "unknown_tool"
                         tool_output = event_data.get("output", "")
-                        # print(f"[STREAM {request_id}] Tool ended: {tool_name}, output length: {len(str(tool_output))}")
+                        print(f"[STREAM {request_id}] Tool ended: {tool_name}, output length: {len(str(tool_output))}")
                         
                         # Truncate large outputs for display (max 1000 chars)
                         output_str = str(tool_output) if tool_output else ""
@@ -310,13 +310,13 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
                     
                     elif event_type == "on_chain_end":
                         # Node completed - capture outputs
-                        # print(f"[STREAM {request_id}] Chain ended: {event_name}")
+                        print(f"[STREAM {request_id}] Chain ended: {event_name}")
                         output = event_data.get("output", {})
                         
                         # Update accumulated state
                         if isinstance(output, dict):
                             accumulated_state.update(output)
-                            # print(f"[STREAM {request_id}] Accumulated state keys: {list(accumulated_state.keys())}")
+                            print(f"[STREAM {request_id}] Accumulated state keys: {list(accumulated_state.keys())}")
                             
                             # Get current iteration
                             iteration_count = output.get("iteration_count", accumulated_state.get("iteration_count", 1))
@@ -365,7 +365,7 @@ async def query_agent_stream(request: Request, payload: AgentQueryRequest):
                 yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
                 return
             
-            # print(f"[STREAM {request_id}] Preparing final response...")
+            print(f"[STREAM {request_id}] Preparing final response...")
             yield f"data: {json.dumps({'type': 'status', 'message': '✓ Agent processing complete'})}\n\n"
             
             response_text = result.get("final_response") or result.get("researcher_output", "")
