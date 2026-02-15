@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Atlas | RAG Agent Dashboard",
-  description: "Healthcare AI powered by retrieval-augmented generation with Claude 3.5 Haiku",
+  description: "Healthcare AI powered by retrieval-augmented generation with Claude 3.5 Sonnet & Haiku",
 };
 
 export default function RootLayout({

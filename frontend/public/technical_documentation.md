@@ -1,6 +1,6 @@
 # hc_ai - Healthcare RAG System: Technical Documentation
 
-> **Professional Portfolio:** This documentation showcases a production-ready healthcare RAG system demonstrating expertise in full-stack AI engineering, cloud architecture planning, and cost-conscious system design.
+> **Professional Portfolio:** This documentation showcases a production healthcare RAG system demonstrating expertise in full-stack AI engineering, cloud architecture, and cost-conscious system design. The system evolved from a local development environment to a lean AWS production deployment serving real queries at ~$124/month.
 
 ---
 
@@ -14,8 +14,8 @@
 6. [API Architecture](#6-api-architecture)
 7. [Frontend Interface](#7-frontend-interface)
 8. [Metrics & Evaluation](#8-metrics--evaluation)
-9. [AWS Migration Plan](#9-aws-migration-plan)
-10. [Items Requiring Future Definition](#10-items-requiring-future-definition)
+9. [AWS Production Architecture](#9-aws-production-architecture)
+10. [What I'd Do With More Resources](#10-what-id-do-with-more-resources)
 
 ---
 
@@ -23,27 +23,33 @@
 
 ### Executive Summary
 
-**hc_ai** is a production-ready Retrieval-Augmented Generation (RAG) system designed for healthcare applications. It processes synthetic FHIR (Fast Healthcare Interoperability Resources) data, generates semantic embeddings, and provides intelligent query capabilities through a multi-agent AI system.
+**hc_ai** is a production Retrieval-Augmented Generation (RAG) system designed for healthcare applications. It processes synthetic FHIR (Fast Healthcare Interoperability Resources) data, generates semantic embeddings, and provides intelligent query capabilities through a multi-agent AI system.
+
+**Production Scale:**
+- **91,000 patients** with complete medical histories
+- **7.7 million vector chunks** (1024-dimensional embeddings)
+- Running on AWS at **~$124/month**
 
 **Key Capabilities:**
 - **FHIR Data Processing**: Parses and chunks complex healthcare records maintaining JSON structure integrity
 - **Semantic Search**: 1024-dimensional vector embeddings with hybrid search (BM25 + semantic)
-- **Intelligent Agent**: LangGraph-based multi-agent system with healthcare-specific tools (FDA, LOINC, PubMed)
-- **Production-Ready**: Queue-based processing, retry logic, error tracking, and comprehensive observability
-- **Cost-Conscious Design**: Local development environment with well-planned AWS migration strategy
+- **Intelligent Agent**: LangGraph-based agent with Claude 3.5 Sonnet (reasoning) and Haiku (synthesis), plus 28 healthcare-specific tools
+- **Production-Ready**: Deployed on AWS ECS Fargate with RDS PostgreSQL, Bedrock LLM, and real-time observability
+- **Cost-Conscious Design**: Evolved from local development to lean AWS production (~$124/month)
 
-### Design Philosophy
+### Design Philosophy & Journey
 
-This system demonstrates **cost-conscious engineering** with production scalability in mind:
+This system demonstrates a **practical engineering journey** from local development to production:
 
-1. **Local-First Development**: Complete development environment using PostgreSQL, DynamoDB Local, and Ollama
-2. **Cloud-Ready Architecture**: Designed for seamless migration to AWS managed services
-3. **Efficient Resource Usage**: Connection pooling, caching, batch processing, and queue management
-4. **Observability-Driven**: Comprehensive metrics, error tracking, and evaluation frameworks
+1. **Phase 1 — Local Development**: Complete development environment using PostgreSQL, DynamoDB Local, and Ollama. Zero cloud costs during development and experimentation.
+2. **Phase 2 — AWS Migration**: Migrated to ECS Fargate, RDS PostgreSQL, and Bedrock Claude. Discovered and resolved critical production issues (sync I/O deadlocks, index performance at scale, event loop blocking).
+3. **Phase 3 — Production Tuning**: PostgreSQL performance optimization, IVFFlat indexing, btree indexes for metadata filters, cold start optimization, and real-time CloudWatch observability.
+
+The journey from local to production revealed challenges that only appear at scale — 7.7M vectors don't behave like 100K, and a single-worker uvicorn server exposes every blocking call.
 
 ---
 
-### Current Architecture: Local Development
+### Phase 1: Local Development
 
 ![Local Development Architecture](/local_architecture_diagram_1769617325723.png)
 
@@ -69,24 +75,25 @@ This system demonstrates **cost-conscious engineering** with production scalabil
 
 ---
 
-### Planned Architecture: AWS Production
+### Phase 2: AWS Production (Current)
 
 ![AWS Production Architecture](/aws_architecture_diagram_1769617381606.png)
 
-**Technology Stack (AWS):**
+**Technology Stack (AWS Production):**
 
-| Component | AWS Service | Benefit | Cost Model |
-|-----------|------------|---------|------------|
-| **Data Storage** | S3 Standard | Durable FHIR file storage | Pay per GB stored |
-| **VPC Optimization** | S3 Gateway Endpoint | Free data transfer within VPC | Free |
-| **API** | App Runner | Managed container deployment, auto-scaling | Pay per vCPU/memory |
-| **Embeddings** | Bedrock + Titan | Managed embedding service | Pay per token |
-| **LLM** | Bedrock + Claude | Managed LLM (Sonnet/Haiku) | Pay per token |
-| **Vector DB** | RDS PostgreSQL (pgvector) | Multi-AZ, automated backups | Instance hours |
-| **Session Store** | DynamoDB | On-demand pricing, auto-scaling | Pay per request |
-| **Observability** | LangSmith (planned) | Agent execution tracing | Subscription |
-| **Monitoring** | CloudWatch (TBD) | Logs, metrics, alarms | Pay per metric |
-| **IaC** | CDK (planned) | Infrastructure as Code | Free (dev tool) |
+| Component | AWS Service | Configuration | Cost |
+|-----------|------------|---------------|------|
+| **API** | ECS Fargate | 0.5 vCPU, 2GB RAM, single task | ~$21/mo |
+| **LLM** | Bedrock Claude | Sonnet (researcher) + Haiku (response) | ~$46/mo |
+| **Embeddings** | Bedrock Titan | amazon.titan-embed-text-v2:0 (1024-dim) | ~$0.20/mo |
+| **Vector DB** | RDS PostgreSQL 16 | db.t4g.small (2 vCPU, 2GB RAM, 250GB gp3) | ~$52/mo |
+| **Session Store** | DynamoDB | On-demand pricing | ~$2/mo |
+| **FHIR Storage** | S3 Standard | ~100GB synthetic data | ~$2.50/mo |
+| **Container Registry** | ECR | Docker image storage | ~$0.20/mo |
+| **Frontend** | Vercel | Next.js deployment | Free tier |
+| **CI/CD** | GitHub Actions | Build → ECR → ECS deploy | Free tier |
+| **Monitoring** | CloudWatch | ECS/RDS/ALB metrics | Included |
+| **Total** | | | **~$124/mo** |
 
 ---
 
@@ -94,38 +101,31 @@ This system demonstrates **cost-conscious engineering** with production scalabil
 
 ```mermaid
 graph LR
-    subgraph Local["🏠 Local Development"]
+    subgraph Local["Phase 1: Local Development"]
         L1[PostgreSQL<br/>pgvector]
         L2[DynamoDB<br/>Local]
-        L3[Ollama<br/>Embeddings]
-        L4[Ollama<br/>LLM]
+        L3[Ollama<br/>mxbai-embed-large]
+        L4[Ollama<br/>qwen2.5:32b]
         L5[FastAPI<br/>uvicorn]
     end
-    
-    subgraph AWS["☁️ AWS Production"]
-        A1[RDS PostgreSQL<br/>Multi-AZ]
+
+    subgraph AWS["Phase 2: AWS Production"]
+        A1[RDS PostgreSQL 16<br/>db.t4g.small]
         A2[DynamoDB<br/>On-Demand]
-        A3[Bedrock<br/>Titan]
-        A4[Bedrock<br/>Claude]
-        A5[App Runner<br/>Auto-Scale]
+        A3[Bedrock<br/>Titan Embeddings v2]
+        A4[Bedrock<br/>Claude 3.5 Sonnet/Haiku]
+        A5[ECS Fargate<br/>0.5 vCPU / 2GB]
     end
-    
-    L1 -->|Migrate| A1
-    L2 -->|Migrate| A2
-    L3 -->|Migrate| A3
-    L4 -->|Migrate| A4
-    L5 -->|Migrate| A5
-    
+
+    L1 -->|Migrated| A1
+    L2 -->|Migrated| A2
+    L3 -->|Migrated| A3
+    L4 -->|Migrated| A4
+    L5 -->|Migrated| A5
+
     style Local fill:#e3f2fd
     style AWS fill:#fff3e0
 ```
-
-**Migration Benefits:**
-- **Managed Services**: Reduced operational overhead
-- **Auto-Scaling**: Handle variable traffic without manual intervention
-- **High Availability**: Multi-AZ deployments for database
-- **Pay-as-You-Go**: No upfront costs, scale down during low usage
-- **Enterprise Features**: Automated backups, monitoring, security
 
 ---
 
@@ -134,21 +134,23 @@ graph LR
 #### Programming Languages & Frameworks
 
 **Backend:**
-- **Python 3.9+**: Core API, processing, and agent logic
+- **Python 3.12**: Core API, processing, and agent logic
 - **Go 1.19+**: High-performance FHIR data parsing
 - **FastAPI**: Modern async Python web framework
 - **LangChain**: LLM orchestration and tooling
 - **LangGraph**: Multi-agent state machine framework
 
 **Frontend:**
-- **TypeScript**: Type-safe React development
-- **Next.js**: React framework with server-side rendering
-- **Material-UI**: Component library (vibe-coded)
+- **TypeScript 5.9**: Type-safe React development
+- **Next.js 16.1**: React framework with server-side rendering
+- **Material-UI 7.3 + TailwindCSS 4**: Component library and utility-first styling
+- **Recharts**: Data visualization (observability dashboard)
+- **Framer Motion**: Animations and transitions
 
 **Infrastructure:**
-- **Docker**: Containerization for PostgreSQL, DynamoDB Local
-- **CDK (planned)**: AWS Infrastructure as Code
-- **SQLAlchemy**: Async database ORM
+- **Docker**: Containerization (Python 3.12-slim base)
+- **GitHub Actions**: CI/CD pipeline (build → ECR → ECS deploy)
+- **ECS Fargate**: Serverless container hosting
 
 #### Data Processing
 - **RecursiveJsonSplitter**: JSON-aware chunking preserving FHIR structure
@@ -156,15 +158,15 @@ graph LR
 - **BM25**: Full-text keyword search for exact matches (ICD-10, LOINC codes)
 
 #### AI/ML Stack
-- **Embeddings**: 
-  - Local: mxbai-embed-large (1024 dimensions)
-  - AWS: Amazon Titan Embeddings
+- **Embeddings**:
+  - Local: mxbai-embed-large via Ollama (1024 dimensions)
+  - Production: Amazon Titan Embeddings v2 via Bedrock (1024 dimensions)
 - **LLM**:
   - Local: qwen2.5:32b via Ollama (recommended for 24GB VRAM)
-  - AWS: Claude 3.5 (Sonnet/Haiku) via Bedrock
+  - Production: Claude 3.5 Sonnet (researcher/reasoning) + Claude 3.5 Haiku (synthesis/validation) via Bedrock
   - Dual-provider support: `LLM_PROVIDER=ollama|bedrock`
 
-**Model Selection Guide (24GB VRAM / RTX 4090):**
+**Model Selection Guide (Local Development, 24GB VRAM / RTX 4090):**
 
 | Model | VRAM | Notes |
 |-------|------|-------|
@@ -174,17 +176,22 @@ graph LR
 | `llama3.1:70b` | ~40GB | Requires CPU offload on 4090, slow |
 
 > **Key insight:** 8B-parameter models cannot distinguish few-shot examples from real patient data. Use 32B+ for medical agents to prevent example data hallucination.
+
 - **Reranking**: sentence-transformers/all-MiniLM-L6-v2 cross-encoder
 
 ---
 
 ### System Characteristics
 
+**Scale:**
+- 91,000 patients, 7.7 million chunks, 1024-dimensional embeddings
+- Single-worker uvicorn on ECS Fargate (0.5 vCPU, 2GB RAM)
+
 **Scalability:**
 - Async processing with background tasks
 - Connection pooling (10 pool size, 5 overflow)
 - Batch operations for vector storage
-- Caching layer (3600s TTL, 10K max size)
+- All sync I/O wrapped in `asyncio.to_thread()` to prevent event loop blocking
 
 **Reliability:**
 - Exponential backoff retry mechanism (max 5 retries)
@@ -193,38 +200,46 @@ graph LR
 - Comprehensive error classification (retryable, duplicate, fatal)
 
 **Observability:**
-- Structured logging
-- Real-time metrics (latency, token usage)
-- Database connection monitoring
-- Queue statistics tracking
-- RAGAS evaluation framework
+- CloudWatch metrics (ECS CPU/Memory, ALB latency/requests, RDS CPU/connections)
+- Real-time dashboard with sparkline trends
+- Pipeline step timing visualization
+- Structured debug logging with timing for search, embedding, and reranking operations
 
 **Security:**
-- PII masking (local regex-based, AWS Comprehend Medical planned)
+- PII masking (local regex-based)
 - Input/output validation and guardrails
 - Credentials management via environment variables
+- Non-root container user
 
 ---
 
 ### Performance Characteristics
 
-**Embedding Generation:**
-- Local: ~50-100ms per chunk (Ollama)
-- AWS: ~20-50ms per chunk (Bedrock, estimated)
+**At Production Scale (7.7M chunks, 91K patients):**
 
-**Vector Search:**
-- Similarity search: 10-50ms for 50 candidates
-- Hybrid search: 20-100ms (parallel BM25 + semantic)
-- Reranking: 50-150ms for 50→10 refinement
+**Embedding Generation:**
+- Production (Bedrock Titan): ~100ms per query embedding
+- Local (Ollama): ~50-100ms per embedding
+
+**Vector Search (patient-filtered with btree index):**
+- Semantic search: ~100-500ms
+- BM25 search: ~50-200ms
+- Hybrid search: ~200-600ms (parallel execution)
+
+**Cross-Encoder Reranking:**
+- 50→10 candidates: ~200-500ms on CPU (ECS Fargate)
 
 **Agent Execution:**
-- Simple query: 1-3 seconds
-- Complex multi-tool query: 5-15 seconds
-- Streaming: Real-time SSE updates every 100-500ms
+- Simple query (no tools): 3-8 seconds
+- Complex multi-tool query: 10-30 seconds
+- Agent timeout: 300 seconds (configurable)
+- Streaming: Real-time SSE updates with 15s keepalive
 
-**Data Processing:**
-- Chunking: 10-50ms per FHIR resource
-- Batch storage: 20-100 chunks/second
+**Infrastructure:**
+- Cold start: 60-90s (model loading + vector store pre-warm on 0.5 vCPU)
+- ALB idle timeout: 60s (mitigated by SSE keepalive comments every 15s)
+
+> **Key lesson:** Before adding btree indexes on `patient_id` and `resource_type`, patient-filtered queries took **~39 seconds** (sequential scan across 7.7M rows). After indexing: **<100ms**. GIN indexes on JSONB don't help — you need separate btree indexes on the specific JSONB expression paths.
 
 ---
 
@@ -310,7 +325,7 @@ The pipeline consists of **8 stages** with built-in error handling and retry log
 
 ### Stage 2: Go Parser - High-Performance Extraction
 
-**Implementation**: [POC_embeddings/main.go](file:///Users/raph/Documents/hc_ai/POC_embeddings/main.go)
+**Implementation**: `POC_embeddings/main.go`
 
 **Why Go?**
 - **Performance**: 5-10x faster than Python for JSON parsing
@@ -324,21 +339,21 @@ The pipeline consists of **8 stages** with built-in error handling and retry log
 func processFile(filePath string) {
     // 1. Read and parse FHIR Bundle
     bundle := parseBundle(filePath)
-    
+
     // 2. Extract patient ID from Patient resource
     patientID := extractPatientID(bundle.Entry)
-    
+
     // 3. Iterate through all resources in bundle
     for _, entry := range bundle.Entry {
         resource := entry.Resource
         resourceType := resource.ResourceType
-        
+
         // 4. Extract human-readable content
         content := extractContent(resource, resourceType)
-        
+
         // 5. Serialize full resource JSON
         resourceJSON := json.Marshal(resource)
-        
+
         // 6. Build payload
         payload := ClinicalNote{
             ID:           resource.ID,
@@ -349,7 +364,7 @@ func processFile(filePath string) {
             ResourceJSON: resourceJSON,
             SourceFile:   filePath,
         }
-        
+
         // 7. HTTP POST to Python API
         sendToPipeline(payload)
     }
@@ -372,7 +387,7 @@ func processFile(filePath string) {
 
 ### Stage 3: FastAPI Ingestion Endpoint
 
-**Implementation**: [api/embeddings/router.py](file:///Users/raph/Documents/hc_ai/api/embeddings/router.py)
+**Implementation**: `api/embeddings/router.py`
 
 **Endpoint**: `POST /embeddings/ingest`
 
@@ -403,7 +418,7 @@ if not note.content or len(note.content.strip()) == 0:
 async def ingest_note(note: ClinicalNote, background_tasks: BackgroundTasks):
     # Immediately return 202 Accepted
     background_tasks.add_task(process_and_store, note)
-    
+
     return {
         "status": "accepted",
         "id": note.id,
@@ -421,7 +436,7 @@ async def ingest_note(note: ClinicalNote, background_tasks: BackgroundTasks):
 
 ### Stage 4: Intelligent JSON-Aware Chunking
 
-**Implementation**: [api/embeddings/utils/helper.py](file:///Users/raph/Documents/hc_ai/api/embeddings/utils/helper.py)
+**Implementation**: `api/embeddings/utils/helper.py`
 
 **Strategy**: RecursiveJsonSplitter (LangChain)
 
@@ -453,8 +468,7 @@ Original FHIR Observation (1200 chars):
   "code": {"coding": [{"system": "http://loinc.org", "code": "2093-3"}], "text": "Cholesterol Total"},
   "subject": {"reference": "Patient/456"},
   "effectiveDateTime": "2024-01-15",
-  "valueQuantity": {"value": 195, "unit": "mg/dL"},
-  // ... more nested fields
+  "valueQuantity": {"value": 195, "unit": "mg/dL"}
 }
 ```
 
@@ -478,29 +492,28 @@ except:
 
 ### Stage 5: Metadata Extraction & Enrichment
 
-**Implementation**: `extract_resource_metadata()` in [helper.py](file:///Users/raph/Documents/hc_ai/api/embeddings/utils/helper.py)
+**Implementation**: `extract_resource_metadata()` in `api/embeddings/utils/helper.py`
 
 **Extracted Metadata**:
 
 ```python
 metadata = {
     # Identifiers
-    "patientId": "03e6006e-b8a0-49a5-9e97-8c08f2f66752",
-    "resourceId": "a1adaf74-aeee-47a2-b096-247728c87cc2",
-    "resourceType": "Observation",
-    "fullUrl": "urn:uuid:a1adaf74-aeee-47a2-b096-247728c87cc2",
-    "sourceFile": "../data/fhir/Abbott509_Aaron203_44.json",
-    
+    "patient_id": "03e6006e-b8a0-49a5-9e97-8c08f2f66752",
+    "resource_id": "a1adaf74-aeee-47a2-b096-247728c87cc2",
+    "resource_type": "Observation",
+    "full_url": "urn:uuid:a1adaf74-aeee-47a2-b096-247728c87cc2",
+    "source_file": "../data/fhir/Abbott509_Aaron203_44.json",
+
     # Chunk Information
-    "chunkId": "a1adaf74-aeee-47a2-b096-247728c87cc2_chunk_0",
-    "chunkIndex": 0,
-    "totalChunks": 2,
-    "chunkSize": 850,
-    
+    "chunk_id": "a1adaf74-aeee-47a2-b096-247728c87cc2_chunk_0",
+    "chunk_index": 0,
+    "total_chunks": 2,
+    "chunk_size": 850,
+
     # FHIR-Specific Metadata (extracted from resource JSON)
-    "effectiveDate": "2024-01-15T10:30:00Z",
-    "status": "final",
-    "lastUpdated": "2024-01-20T14:22:00Z"
+    "effective_date": "2024-01-15T10:30:00Z",
+    "status": "final"
 }
 ```
 
@@ -528,49 +541,54 @@ date_fields = {
 
 ### Stage 6: Embedding Generation
 
-**Current (Local)**: Ollama + mxbai-embed-large:latest
+**Production**: Amazon Bedrock Titan Embeddings v2
+**Local Development**: Ollama + mxbai-embed-large
 
-**Implementation**:
+**Implementation** (dual-provider):
 ```python
+# Provider determined by EMBEDDING_PROVIDER env var
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "ollama")  # "ollama" | "bedrock"
+
+# Synchronous (used during ingestion)
 def get_chunk_embedding(text: str) -> List[float]:
-    response = requests.post(
-        "http://localhost:11434/api/embeddings",
-        json={
-            "model": "mxbai-embed-large:latest",
-            "prompt": text
-        }
-    )
-    embedding = response.json()["embedding"]
-    assert len(embedding) == 1024  # Validate dimension
-    return embedding
+    if EMBEDDING_PROVIDER == "bedrock":
+        return _get_embeddings_bedrock(text)
+    else:
+        return _get_embeddings_ollama(text)
+
+# Async wrapper (used during query-time to avoid blocking event loop)
+async def async_get_chunk_embedding(text: str) -> List[float]:
+    return await asyncio.to_thread(get_chunk_embedding, text)
 ```
 
-**Model Specifications**:
-- **Dimensions**: 1024
-- **Max Input**: 8192 tokens
-- **Performance**: ~50-100ms per embedding (local CPU/GPU)
-- **Quality**: State-of-the-art retrieval performance
+> **Critical lesson:** On single-worker uvicorn, calling sync `get_chunk_embedding()` directly from an async function blocks the entire event loop. The `async_get_chunk_embedding()` wrapper via `asyncio.to_thread()` was added after discovering this caused request timeouts in production.
 
-**AWS Migration** (planned):
+**Bedrock Implementation** (production):
 ```python
-import boto3
-
 bedrock = boto3.client("bedrock-runtime", region_name="us-east-2")
 
-def get_chunk_embedding_bedrock(text: str) -> List[float]:
+def _get_embeddings_bedrock(text: str) -> List[float]:
     response = bedrock.invoke_model(
-        modelId="amazon.titan-embed-text-v1",
+        modelId="amazon.titan-embed-text-v2:0",
         body=json.dumps({"inputText": text})
     )
     return json.loads(response["body"].read())["embedding"]
 ```
 
-**Benefits of Bedrock**:
-- Managed service (no infrastructure)
-- Pay-per-use (no idle costs)
-- Lower latency (~20-50ms)
-- Auto-scaling
-- Enterprise security
+**Ollama Implementation** (local):
+```python
+def _get_embeddings_ollama(text: str) -> List[float]:
+    response = requests.post(
+        f"{OLLAMA_BASE_URL}/api/embeddings",
+        json={"model": "mxbai-embed-large:latest", "prompt": text}
+    )
+    return response.json()["embedding"]
+```
+
+**Model Specifications**:
+- **Dimensions**: 1024 (both providers)
+- **Max Input**: 8192 tokens
+- **Latency**: ~100ms (Bedrock), ~50-100ms (Ollama local)
 
 ---
 
@@ -580,7 +598,7 @@ def get_chunk_embedding_bedrock(text: str) -> List[float]:
 
 **Solution**: Async queue with exponential backoff retry
 
-**Implementation**: [api/database/postgres.py](file:///Users/raph/Documents/hc_ai/api/database/postgres.py)
+**Implementation**: `api/database/postgres.py`
 
 **Queue Architecture**:
 
@@ -597,7 +615,7 @@ graph TD
     I -->|Re-enqueue| B
     G -->|No| H
     E --> J[Success]
-    
+
     B -.->|Persist| K[SQLite Queue Storage]
     K -.->|Restore on Restart| B
 ```
@@ -624,16 +642,16 @@ delay = min(RETRY_BASE_DELAY * (2 ** retry_count), RETRY_MAX_DELAY)
 ```python
 def classify_error(exc: Exception) -> str:
     msg = str(exc).lower()
-    
+
     # Retryable errors (network, connection pool)
     if any(kw in msg for kw in ["connection", "timeout", "too many clients"]):
         return "retryable"
-    
+
     # Duplicate (skip, already exists)
     if "duplicate key" in msg or "unique constraint" in msg:
         return "duplicate"
-    
-    # Fatal (data validation, schema errors) 
+
+    # Fatal (data validation, schema errors)
     return "fatal"
 ```
 
@@ -651,9 +669,9 @@ def classify_error(exc: Exception) -> str:
 
 ### Stage 8: PostgreSQL Vector Storage
 
-**Implementation**: [api/database/postgres.py](file:///Users/raph/Documents/hc_ai/api/database/postgres.py)
+**Implementation**: `api/database/postgres.py`
 
-**Database**: PostgreSQL 18 + pgvector extension
+**Database**: PostgreSQL 16 + pgvector extension (RDS in production)
 
 **Schema**: `hc_ai_schema`
 
@@ -668,27 +686,32 @@ CREATE TABLE hc_ai_schema.hc_ai_table (
     langchain_metadata JSONB
 );
 
--- Index for vector similarity search
-CREATE INDEX ON hc_ai_schema.hc_ai_table 
-USING ivfflat (embedding vector_cosine_ops) 
-WITH (lists = 100);
+-- Vector similarity index (IVFFlat for approximate nearest neighbor)
+CREATE INDEX ON hc_ai_schema.hc_ai_table
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 512);
 
--- Index for metadata filtering
-CREATE INDEX ON hc_ai_schema.hc_ai_table 
-USING GIN (langchain_metadata);
+-- Btree indexes for JSONB metadata filtering (critical for performance)
+CREATE INDEX idx_hc_ai_patient_id
+ON hc_ai_schema.hc_ai_table ((langchain_metadata->>'patient_id'));
+
+CREATE INDEX idx_hc_ai_resource_type
+ON hc_ai_schema.hc_ai_table ((langchain_metadata->>'resource_type'));
 ```
+
+> **Key lesson:** GIN indexes on JSONB do NOT help with metadata equality filters at this scale. Separate btree indexes on the specific JSONB expression paths are required. Without the `idx_hc_ai_patient_id` btree index, patient-filtered queries sequentially scanned all 7.7M rows (~39 seconds). With the index: <100ms.
 
 **Storage Logic**:
 ```python
 async def store_chunk(chunk_text: str, chunk_id: str, metadata: Dict) -> bool:
     vector_store = await initialize_vector_store()
-    
+
     doc = Document(
         id=chunk_id,
         page_content=chunk_text,
         metadata=metadata
     )
-    
+
     await vector_store.aadd_documents([doc])
     return True
 ```
@@ -715,7 +738,7 @@ async def store_chunks_batch(chunks: List[Dict]) -> int:
         )
         for chunk in chunks
     ]
-    
+
     # Single transaction, much faster than individual inserts
     await vector_store.aadd_documents(documents)
     return len(documents)
@@ -730,21 +753,15 @@ async def store_chunks_batch(chunks: List[Dict]) -> int:
 - HTTP POST: 10-20ms
 - Validation: 1-5ms
 - Chunking: 20-50ms (depends on resource size)
-- Embedding generation: 50-100ms × number of chunks
+- Embedding generation: ~100ms per chunk
 - Queue + Storage: 10-30ms per chunk
 
 **Example**: Patient Bundle with 50 resources, avg 2 chunks each (100 chunks total)
 - Parsing + HTTP: ~100ms
-- Chunking: 50ms × 50 resources = 2.5s
-- Embeddings: 75ms × 100 chunks = 7.5s
-- Storage: 20ms × 100 chunks = 2s
-- **Total**: ~12 seconds
-
-**Optimization Opportunities (AWS)**:
-- Bedrock embeddings: -50% embedding time
-- Batch embedding requests: -30% network overhead
-- Larger RDS instance: -40% storage time
-- **Projected Total**: ~5 seconds (60% improvement)
+- Chunking: 50ms x 50 resources = 2.5s
+- Embeddings: 100ms x 100 chunks = 10s
+- Storage: 20ms x 100 chunks = 2s
+- **Total**: ~15 seconds
 
 ---
 
@@ -780,11 +797,11 @@ async def log_error(
 
 This pipeline demonstrates:
 
-✅ **Production-Ready Design**: Retry logic, error handling, persistent queues
-✅ **Performance Optimization**: Async processing, connection pooling, batch operations
-✅ **Data Integrity**: JSON-aware chunking, comprehensive metadata, validation
-✅ **Observability**: Detailed logging, metrics, error tracking
-✅ **Scalability**: Queue-based architecture, ready for distributed processing
+- **Production-Ready Design**: Retry logic, error handling, persistent queues
+- **Performance Optimization**: Async processing, connection pooling, batch operations
+- **Data Integrity**: JSON-aware chunking, comprehensive metadata, validation
+- **Observability**: Detailed logging, metrics, error tracking
+- **Scalability**: Queue-based architecture, ready for distributed processing
 
 [Continue to Section 3: Vector Storage & Retrieval →](#3-vector-storage--retrieval)
 
@@ -796,7 +813,7 @@ This section covers the database architecture, retrieval strategies, and reranki
 
 ### Database Architecture
 
-**PostgreSQL 18 + pgvector Extension**
+**PostgreSQL 16 + pgvector Extension (RDS)**
 
 PostgreSQL was chosen for its:
 - **Mature ecosystem**: Battle-tested RDBMS with excellent tooling
@@ -806,6 +823,8 @@ PostgreSQL was chosen for its:
 - **Cost-effective**: Open-source, runs on standard hardware
 
 ![Database Schema](/database_schema_diagram_1769617752692.png)
+
+**Production Instance**: RDS db.t4g.small (2 vCPU, 2GB RAM, 250GB gp3 SSD)
 
 ---
 
@@ -827,18 +846,38 @@ PostgreSQL was chosen for its:
 
 ```sql
 -- 1. Vector Similarity Index (IVFFlat for approximate nearest neighbor)
-CREATE INDEX ON hc_ai_schema.hc_ai_table 
-USING ivfflat (embedding vector_cosine_ops) 
-WITH (lists = 100);
+CREATE INDEX ON hc_ai_schema.hc_ai_table
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 512);
 
--- 2. Metadata Filtering Index (GIN for JSONB)
-CREATE INDEX ON hc_ai_schema.hc_ai_table 
-USING GIN (langchain_metadata);
+-- 2. Btree indexes for fast metadata filtering
+CREATE INDEX idx_hc_ai_patient_id
+ON hc_ai_schema.hc_ai_table ((langchain_metadata->>'patient_id'));
+
+CREATE INDEX idx_hc_ai_resource_type
+ON hc_ai_schema.hc_ai_table ((langchain_metadata->>'resource_type'));
 ```
 
 **Why These Indexes?**
-- **IVFFlat**: Approximate nearest neighbor search, 10-100x faster than exact search with minimal accuracy loss
-- **GIN (Generalized Inverted Index)**: Efficient JSONB queries for patient filtering, date ranges, resource types
+- **IVFFlat (512 lists, 23 probes)**: Approximate nearest neighbor search. At 7.7M vectors, 512 lists balances recall vs speed. Probes set to `sqrt(512) = 23` on every connection via `SET ivfflat.probes = 23`.
+- **Btree on patient_id**: Patient-filtered queries need exact match on JSONB field. Without this, PostgreSQL sequentially scans all 7.7M rows (~39 seconds). With the index: <100ms.
+- **Btree on resource_type**: Filters by FHIR resource type (Condition, Observation, etc.) to narrow results before vector search.
+
+> **Lesson learned:** GIN (Generalized Inverted Index) on JSONB does NOT help with equality filters on specific keys at this scale. GIN is designed for containment queries (`@>`), not for `->>'key' = 'value'` patterns. Separate btree indexes on the exact JSONB expression paths are required.
+
+> **Index creation caveat:** `CREATE INDEX CONCURRENTLY` can silently fail — the index is created but marked invalid. Always verify with `SELECT indexrelid::regclass, indisvalid FROM pg_index` after creation.
+
+---
+
+### IVFFlat at Scale: Current Limitations
+
+At 7.7M vectors x 1024 dimensions with 512 lists:
+- **Index size**: ~30GB — cannot fit in 2GB RAM (db.t4g.small)
+- **Consequence**: ANN queries are **disk-bound**, reading index pages from gp3 SSD
+- **IVFFlat doesn't compose with WHERE filters**: It scans globally across all lists, then filters. This means patient-filtered vector searches still touch the full index.
+- **Mitigation**: For patient-specific queries, the system uses SQL-level btree filtering first, then applies vector similarity on the filtered subset.
+
+See [Section 10](#10-what-id-do-with-more-resources) for scaling strategies.
 
 ---
 
@@ -852,50 +891,33 @@ The system supports **3 retrieval methods** that can be used independently or co
 
 ### Method 1: Semantic Search
 
-**Implementation**: [api/database/postgres.py:search_similar_chunks()](file:///Users/raph/Documents/hc_ai/api/database/postgres.py#L399-L468)
+**Implementation**: `api/database/postgres.py`
 
-**Strategy**: Vector similarity using cosine distance
+**Strategy**: Vector similarity using cosine distance with SQL-level patient filtering
 
 ```python
-async def search_similar_chunks(
+async def _search_similar_with_sql_filter(
     query: str,
-    k: int = 5,
-    filter_metadata: Optional[Dict[str, Any]] = None
+    k: int = 50,
+    patient_id: Optional[str] = None
 ) -> List[Document]:
-    vector_store = await initialize_vector_store()
-    
-    # Generate query embedding
-    query_embedding = get_chunk_embedding(query)
-    
-    # Perform similarity search
-    results = await vector_store.asimilarity_search(
-        query=query,
-        k=k
-    )
-    
-    # Apply metadata filtering in Python (post-filter)
-    if filter_metadata:
-        results = [
-            doc for doc in results 
-            if all(doc.metadata.get(k) == v for k, v in filter_metadata.items())
-        ]
-    
+    # Generate query embedding (async to avoid blocking event loop)
+    query_embedding = await async_get_chunk_embedding(query)
+
+    sql = """
+        SELECT langchain_id, content, langchain_metadata,
+               1 - (embedding <=> :embedding) AS similarity_score
+        FROM hc_ai_schema.hc_ai_table
+        WHERE langchain_metadata->>'patient_id' = :patient_id
+        ORDER BY embedding <=> :embedding
+        LIMIT :k
+    """
+
+    results = await conn.execute(text(sql), params)
     return results
 ```
 
-**Query Translation**:
-```sql
-SELECT 
-    langchain_id,
-    content,
-    langchain_metadata,
-    1 - (embedding <=> $1) AS similarity_score
-FROM hc_ai_schema.hc_ai_table
-ORDER BY embedding <=> $1  -- Cosine distance operator
-LIMIT 50;
-```
-
-**Performance**: 10-50ms for 50 candidates
+**Performance**: ~100-500ms (patient-filtered)
 
 **Best For**:
 - Natural language queries
@@ -906,7 +928,7 @@ LIMIT 50;
 
 ### Method 2: BM25 Full-Text Search
 
-**Implementation**: [api/database/bm25_search.py](file:///Users/raph/Documents/hc_ai/api/database/bm25_search.py)
+**Implementation**: `api/database/bm25_search.py`
 
 **Strategy**: Keyword-based ranking (Best Matching 25 algorithm)
 
@@ -918,12 +940,12 @@ async def bm25_search(
 ) -> List[Document]:
     # Tokenize query
     query_terms = query.lower().split()
-    
+
     # Build full-text search query
     tsquery = " & ".join(query_terms)
-    
+
     sql = f"""
-        SELECT 
+        SELECT
             langchain_id,
             content,
             langchain_metadata,
@@ -933,19 +955,19 @@ async def bm25_search(
         ORDER BY bm25_score DESC
         LIMIT $2
     """
-    
+
     results = await db.execute(sql, [tsquery, k])
     return results
 ```
 
-**Performance**: 15-60ms for 50 candidates
+**Performance**: ~50-200ms
 
 **Best For**:
 - Exact keyword matches (ICD-10 codes, LOINC codes)
 - Medical terminology
 - Specific drug names or procedure codes
 
-**Example**: 
+**Example**:
 - Query: "ICD-10 E11.9" → Exact match for diabetes code
 - Query: "metformin 500mg" → Exact medication match
 
@@ -953,70 +975,49 @@ async def bm25_search(
 
 ### Method 3: Hybrid Search
 
-**Implementation**: [api/database/postgres.py:hybrid_search()](file:///Users/raph/Documents/hc_ai/api/database/postgres.py#L471-L564)
+**Implementation**: `api/database/postgres.py`
 
-**Strategy**: Weighted combination of semantic + BM25
+**Strategy**: Weighted combination of semantic + BM25, run in parallel
 
 ```python
 async def hybrid_search(
     query: str,
     k: int = 10,
-    bm25_weight: float = 0.5,      # 50% keyword importance
-    semantic_weight: float = 0.5,   # 50% semantic importance
+    bm25_weight: float = 0.5,
+    semantic_weight: float = 0.5,
 ) -> List[Document]:
     # Run both searches in parallel
-    bm25_task = asyncio.create_task(
-        bm25_search(query, k=50, filter_metadata=filter_metadata)
-    )
+    bm25_task = asyncio.create_task(bm25_search(query, k=50))
     semantic_task = asyncio.create_task(
-        search_similar_chunks(query, k=50, filter_metadata=filter_metadata)
+        _search_similar_with_sql_filter(query, k=50)
     )
-    
+
     bm25_results, semantic_results = await asyncio.gather(
         bm25_task, semantic_task
     )
-    
-    # Normalize scores to 0-1 range
-    max_bm25 = max(doc.metadata["_bm25_score"] for doc in bm25_results)
-    
-    # Merge results by document ID
+
+    # Normalize and merge scores by document ID
     merged = {}
     for doc in bm25_results:
-        doc_id = doc.id
-        merged[doc_id] = {
-            "doc": doc,
-            "bm25_score": doc.metadata["_bm25_score"] / max_bm25,
-            "semantic_score": 0.0
-        }
-    
+        merged[doc.id] = {"doc": doc, "bm25_score": normalized, "semantic_score": 0.0}
+
     for rank, doc in enumerate(semantic_results):
-        doc_id = doc.id
         semantic_score = 1.0 - (rank / len(semantic_results))
-        
-        if doc_id in merged:
-            merged[doc_id]["semantic_score"] = semantic_score
+        if doc.id in merged:
+            merged[doc.id]["semantic_score"] = semantic_score
         else:
-            merged[doc_id] = {
-                "doc": doc,
-                "bm25_score": 0.0,
-                "semantic_score": semantic_score
-            }
-    
-    # Calculate combined scores
-    scored_results = []
-    for doc_data in merged.values():
-        combined_score = (
-            bm25_weight * doc_data["bm25_score"] +
-            semantic_weight * doc_data["semantic_score"]
-        )
-        scored_results.append((combined_score, doc_data["doc"]))
-    
-    # Sort and return top K
-    scored_results.sort(key=lambda x: x[0], reverse=True)
-    return [doc for _, doc in scored_results[:k]]
+            merged[doc.id] = {"doc": doc, "bm25_score": 0.0, "semantic_score": semantic_score}
+
+    # Combined score
+    scored = [
+        (bm25_weight * d["bm25_score"] + semantic_weight * d["semantic_score"], d["doc"])
+        for d in merged.values()
+    ]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [doc for _, doc in scored[:k]]
 ```
 
-**Performance**: 20-100ms (parallel execution)
+**Performance**: ~200-600ms (parallel execution, dominated by slower search)
 
 **Best For**:
 - Complex queries with both keywords and concepts
@@ -1027,7 +1028,7 @@ async def hybrid_search(
 
 ### Patient Timeline Query
 
-**Implementation**: [api/database/postgres.py:get_patient_timeline()](file:///Users/raph/Documents/hc_ai/api/database/postgres.py#L567-L640)
+**Implementation**: `api/database/postgres.py`
 
 **Strategy**: Direct SQL filtering by patient ID, sorted by date
 
@@ -1037,25 +1038,21 @@ async def get_patient_timeline(
     k: int = 50,
     resource_types: Optional[List[str]] = None
 ) -> List[Document]:
-    sql = f"""
-        SELECT 
-            langchain_id,
-            content,
-            langchain_metadata
-        FROM {SCHEMA_NAME}.{TABLE_NAME}
-        WHERE langchain_metadata->>'patientId' = $1
+    sql = """
+        SELECT langchain_id, content, langchain_metadata
+        FROM hc_ai_schema.hc_ai_table
+        WHERE langchain_metadata->>'patient_id' = :patient_id
     """
-    
+
     if resource_types:
-        type_list = ", ".join(f"'{t}'" for t in resource_types)
-        sql += f" AND langchain_metadata->>'resourceType' IN ({type_list})"
-    
+        sql += " AND langchain_metadata->>'resource_type' IN :types"
+
     sql += """
-        ORDER BY langchain_metadata->>'effectiveDate' DESC NULLS LAST
-        LIMIT $2
+        ORDER BY langchain_metadata->>'effective_date' DESC NULLS LAST
+        LIMIT :k
     """
-    
-    results = await db.execute(sql, [patient_id, k])
+
+    results = await db.execute(sql, params)
     return results
 ```
 
@@ -1068,10 +1065,10 @@ Vector embeddings capture semantic similarity, but patient ID is an **exact matc
 
 Direct SQL filtering ensures:
 - **100% precision**: Only returns chunks for specified patient
-- **Efficient**: Uses GIN index on JSONB metadata
+- **Efficient**: Uses btree index on patient_id metadata
 - **Sorted chronologically**: Most recent data first
 
-**Performance**: 5-20ms
+**Performance**: ~10-50ms (btree index scan)
 
 ---
 
@@ -1081,7 +1078,7 @@ Direct SQL filtering ensures:
 
 **Solution**: Cross-encoder reranking for precision
 
-**Implementation**: [api/retrieval/router.py](file:///Users/raph/Documents/hc_ai/api/retrieval/router.py)
+**Implementation**: `api/retrieval/cross_encoder.py`
 
 **Two-Stage Retrieval**:
 1. **Stage 1**: Retrieve 50 candidates (fast, high recall)
@@ -1096,16 +1093,18 @@ reranker = CrossEncoder("sentence-transformers/all-MiniLM-L6-v2")
 def rerank_with_scores(query: str, documents: List[Document]) -> List[Tuple[Document, float]]:
     # Create query-document pairs
     pairs = [(query, doc.page_content) for doc in documents]
-    
-    # Score all pairs
+
+    # Score all pairs (synchronous — wrapped in asyncio.to_thread at call site)
     scores = reranker.predict(pairs)
-    
+
     # Sort by score descending
     scored_docs = list(zip(documents, scores))
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    
+
     return scored_docs
 ```
+
+> **Critical:** `rerank_with_scores()` is synchronous (sentence-transformers uses PyTorch). On single-worker uvicorn, calling it directly from an async function blocks the event loop. The call site wraps it in `asyncio.to_thread()` to prevent this.
 
 **Why Cross-Encoder?**
 
@@ -1114,27 +1113,15 @@ Unlike bi-encoders (used for embeddings), cross-encoders:
 - Capture fine-grained interactions
 - More accurate but slower (can't pre-compute)
 
-**Performance**: 50-150ms for 50→10 reranking
+**Performance**: ~200-500ms for 50→10 reranking on CPU (ECS Fargate 0.5 vCPU)
 
-**Caching Layer**:
-```python
-cache_key = hash(query + sorted(doc_ids))
-cached_scores = cache.get(cache_key)
+**On Caching — A Lesson Learned:**
 
-if cached_scores:
-    return cached_scores  # ~1ms cache hit
+Early in development, an LRU cache was implemented for reranking results (3600s TTL, 10K max entries). In theory, repeated queries should achieve high cache hit rates.
 
-# Cache miss: compute reranking
-scores = reranker.predict(pairs)
-cache.set(cache_key, scores, ttl=3600)
-```
+In practice, the cache was nearly useless: the LLM agent varies its query phrasing on every invocation, even for semantically identical questions. Cache keys based on exact query strings result in near-zero hit rates. This is a general limitation of caching LLM-generated queries — the stochastic nature of language model output defeats deterministic cache key matching.
 
-**Cache Performance**:
-- **Hit Rate**: 90%+ for repeated queries
-- **TTL**: 3600 seconds (1 hour)
-- **Max Size**: 10,000 entries
-- **Hit Latency**: <1ms
-- **Miss Latency**: 50-150ms
+The cache infrastructure remains in the code but does not meaningfully impact production performance.
 
 ---
 
@@ -1163,9 +1150,9 @@ cache.set(cache_key, scores, ttl=3600)
       "id": "chunk-id-1",
       "content": "Patient has Hypertension (ICD-10: I10), status active since 2020-01-15...",
       "metadata": {
-        "patientId": "03e6006e...",
-        "resourceType": "Condition",
-        "effectiveDate": "2020-01-15",
+        "patient_id": "03e6006e...",
+        "resource_type": "Condition",
+        "effective_date": "2020-01-15",
         "status": "active"
       }
     }
@@ -1173,13 +1160,9 @@ cache.set(cache_key, scores, ttl=3600)
 }
 ```
 
-**Endpoint**: `POST /retrieval/rerank/with-context`
-
-Includes full FHIR Bundle JSON for retrieved patient IDs (for agent context).
-
 **Endpoint**: `GET /retrieval/rerank/stats`
 
-Returns cache hit rate, model info, performance metrics.
+Returns model info and performance metrics.
 
 ---
 
@@ -1206,77 +1189,39 @@ engine = create_async_engine(
 - Prevents "too many connections" errors
 - 10-30x faster than creating new connections
 
-**Monitoring**:
+---
+
+### PostgreSQL Performance Tuning
+
+**Custom RDS Parameter Group** (`hcai-postgres16`):
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `random_page_cost` | 1.1 | Encourage index scans (default 4.0 assumes spinning disk) |
+| `effective_io_concurrency` | 200 | gp3 SSD can handle concurrent I/O |
+| `work_mem` | 32MB | More memory for sort/hash operations |
+| `statement_timeout` | 60s | Kill runaway queries |
+
+**IVFFlat Probes** (set per connection):
 ```python
-# Check pool status
-stats = {
-    "pool_size": pool.size(),
-    "checked_out": pool.checkedout(),
-    "overflow": pool.overflow(),
-}
+@event.listens_for(engine.sync_engine, "connect")
+def set_ivfflat_probes(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET ivfflat.probes = 23")
+    cursor.close()
 ```
 
----
-
-### Performance Benchmarks
-
-**Test Setup**: 100,000 chunks, 1000 patients, typical query workload
-
-| Operation | Latency (p50) | Latency (p95) | Throughput |
-|-----------|---------------|---------------|------------|
-| Semantic Search (k=50) | 25ms | 45ms | 40 req/s |
-| BM25 Search (k=50) | 30ms | 70ms | 33 req/s |
-| Hybrid Search (k=50) | 40ms | 90ms | 25 req/s |
-| Patient Timeline | 15ms | 25ms | 66 req/s |
-| Reranking (50→10) | 75ms | 140ms | 13 req/s |
-| **Full Pipeline (with cache)** | **5ms** | **10ms** | **200 req/s** |
-| **Full Pipeline (no cache)** | **120ms** | **180ms** | **8 req/s** |
-
-**Key Insight**: Caching provides **24x improvement** for repeated queries!
-
----
-
-### AWS Migration: RDS PostgreSQL
-
-**Current (Local)**:
-- PostgreSQL 18 in Docker
-- Single instance on local machine
-- Manual backups
-- No failover
-
-**Planned (AWS RDS)**:
+**Post-Ingestion Maintenance**:
+```sql
+-- After bulk loads, update table statistics
+ANALYZE hc_ai_schema.hc_ai_table;
 ```
-Instance Type: db.r6g.xlarge (4 vCPU, 32 GB RAM)
-Deployment: Multi-AZ (primary + standby in different zones)
-Storage: 500 GB GP3 SSD (auto-scaling enabled)
-Backups: Automated daily snapshots, 7-day retention
-Monitoring: CloudWatch integration
-Encryption: At rest + in transit
-```
-
-**Benefits**:
-- **High Availability**: Automatic failover to standby (1-2 min)
-- **Automated Backups**: Point-in-time recovery
-- **Scaling**: Vertical (bigger instance) + horizontal (read replicas)
-- **Managed Updates**: Automated patching
-- **Enhanced Monitoring**: Performance Insights
-
-**Cost Estimation** (us-east-2):
-- Instance: ~$350/month (on-demand)
-- Storage (500 GB): ~$58/month
-- Backups: Included (7 days)
-- **Total**: ~$408/month
-
-**Cost Optimization**:
-- Reserved Instance (1-year): ~$190/month (-46%)
-- Right-size after traffic analysis (may use smaller instance)
-- S3 archival for old backups
 
 ---
 
 ### Auto Resource Type Detection
 
-**Implementation**: [api/agent/tools/retrieval.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/retrieval.py)
+**Implementation**: `api/agent/tools/retrieval.py`
 
 The retrieval layer automatically detects FHIR resource types from query keywords, filtering results before they reach the LLM:
 
@@ -1295,9 +1240,9 @@ def detect_resource_type_from_query(query: str) -> Optional[str]:
 ```
 
 **Benefits**:
-- Applied automatically at the retrieval layer - the LLM doesn't need to know about resource types
+- Applied automatically at the retrieval layer — the LLM doesn't need to know about resource types
 - Prevents irrelevant resource types from burying relevant results (e.g., Condition resources getting buried by 34 Observation chunks)
-- Works with both `search_clinical_notes` and `retrieve_patient_data` tools
+- Works with both `search_patient_records` and `retrieve_patient_data` tools
 
 ---
 
@@ -1305,12 +1250,12 @@ def detect_resource_type_from_query(query: str) -> Optional[str]:
 
 This retrieval system demonstrates:
 
-✅ **Multiple Strategy Support**: Semantic, keyword, hybrid, and patient-specific retrieval
-✅ **Production Optimization**: Caching, connection pooling, batch operations
-✅ **Reranking**: Cross-encoder for improved precision
-✅ **Auto Resource Type Detection**: Query-driven FHIR resource filtering at retrieval layer
-✅ **AWS-Ready**: Clear migration path to RDS with HA and managed services
-✅ **Performance**: Sub-100ms latency with 90%+ cache hit rate
+- **Multiple Strategy Support**: Semantic, keyword, hybrid, and patient-specific retrieval
+- **Production Optimization**: Connection pooling, btree indexes, IVFFlat tuning
+- **Reranking**: Cross-encoder for improved precision
+- **Honest Engineering**: Cache attempted, measured, documented as ineffective for LLM-generated queries
+- **Auto Resource Type Detection**: Query-driven FHIR resource filtering at retrieval layer
+- **Scale Challenges Documented**: IVFFlat disk-bound at 7.7M vectors, GIN vs btree learnings
 
 [Continue to Section 4: Agent System & LangGraph →](#4-agent-system--langgraph)
 
@@ -1324,7 +1269,7 @@ The agent system is the brain of hc_ai, orchestrating retrieval, medical knowled
 
 ### LangGraph Multi-Agent Architecture
 
-**Implementation**: [api/agent/multi_agent_graph.py](file:///Users/raph/Documents/hc_ai/api/agent/multi_agent_graph.py)
+**Implementation**: `api/agent/multi_agent_graph.py`
 
 **Why LangGraph?**
 - **State Management**: Centralized state persists across agent nodes
@@ -1333,29 +1278,39 @@ The agent system is the brain of hc_ai, orchestrating retrieval, medical knowled
 - **Tool Integration**: Seamless tool calling with built-in error handling
 - **Streaming**: Real-time execution updates via Server-Sent Events
 
-### LLM Providers
+### LLM Configuration
 
-The system supports dual LLM providers via the `LLM_PROVIDER` environment variable:
+The system uses a tiered LLM strategy — heavier models for reasoning, lighter models for synthesis:
+
+**Production (Bedrock)**:
+```python
+BEDROCK_MODELS = {
+    "haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+}
+
+# Researcher: Sonnet (complex reasoning, tool selection)
+researcher_llm = get_llm("sonnet")
+
+# Response synthesis: Haiku (fast, cost-effective)
+response_llm = get_llm("haiku")
+
+# Validation: Haiku (fast quality checks)
+validator_llm = get_llm("haiku")
+
+# Conversational: Haiku (simple chat, no tools needed)
+conversational_llm = get_llm("haiku")
+```
 
 **Local Development (Ollama)**:
 ```python
-# LLM_PROVIDER=ollama (default)
+# LLM_PROVIDER=ollama
 llm = ChatOllama(
     model="qwen2.5:32b",  # Recommended for 24GB VRAM
     base_url="http://localhost:11434",
     temperature=0.1,
     num_ctx=4096,
     timeout=60
-)
-```
-
-**AWS Production (Bedrock)**:
-```python
-# LLM_PROVIDER=bedrock
-# LLM_MODEL=sonnet or haiku
-llm = ChatBedrock(
-    model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",  # or haiku
-    model_kwargs={"temperature": 0.1, "max_tokens": 2048}
 )
 ```
 
@@ -1368,10 +1323,10 @@ class QueryClassifier:
     # Classifies queries as: "conversational" | "medical" | "mixed" | "unclear"
 ```
 
-- **Conversational** queries (greetings, small talk) → routed to a lightweight conversational responder (LLM only, no tools)
-- **Medical / Mixed / Unclear** queries → routed to the full researcher agent with tool access
+- **Conversational** queries (greetings, small talk) → routed to a lightweight conversational responder (Haiku, no tools)
+- **Medical / Mixed / Unclear** queries → routed to the full researcher agent with tool access (Sonnet)
 
-This prevents unnecessary tool calls for simple conversational interactions.
+This prevents unnecessary tool calls and Sonnet costs for simple conversational interactions.
 
 ---
 
@@ -1385,13 +1340,13 @@ The agent graph supports two modes via `AGENT_GRAPH_TYPE` environment variable:
 | **`complex`** | Researcher → Validator → Responder | 15 | Iterative refinement with validation loops |
 
 - **Simple mode**: Single pass through researcher and response synthesis. No validation node.
-- **Complex mode**: Adds a Validator node that checks researcher output and can request revision. Can iterate up to `AGENT_MAX_ITERATIONS` (default 15) times.
+- **Complex mode**: Adds a Validator node that checks researcher output and can request revision. Validator uses strictness tiers based on remaining iterations (strict early, relaxed later, emergency near limit).
 
 ---
 
 ### Patient Context Auto-Injection
 
-**Implementation**: [api/agent/tools/context.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/context.py)
+**Implementation**: `api/agent/tools/context.py`
 
 Patient context is managed automatically so the LLM never needs to remember or pass patient IDs:
 
@@ -1405,7 +1360,7 @@ def clear_patient_context() -> None: ...
 ```
 
 **Flow**:
-1. Frontend sends `patient_id` in the API request
+1. Frontend sends `patient_id` directly in the API request (not via React state, to avoid race conditions)
 2. Backend stores it in `AgentState`
 3. `set_patient_context()` is called in the researcher node before tools execute
 4. All tools call `get_patient_context()` to auto-inject the patient_id
@@ -1417,54 +1372,58 @@ def clear_patient_context() -> None: ...
 
 The agent tracks search behavior to prevent infinite loops:
 
-- **`search_attempts`**: List of `{query, patient_id, results_count, iteration}` - tracks every search made
+- **`search_attempts`**: List of `{query, patient_id, results_count, iteration}` — tracks every search made
 - **`empty_search_count`**: Counter of consecutive searches returning 0 results
 - When `empty_search_count > 0`: Injects failed query trajectory into researcher context with instructions to try different search terms
 - When `iteration_count >= 12`: Forces completion with a "step limit" message
 
 ---
 
-### Agent Tools Ecosystem (24 Tools)
+### Agent Tools Ecosystem (28 Tools)
 
-**Retrieval Tools** ([api/agent/tools/retrieval.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/retrieval.py), [api/agent/tools/__init__.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/__init__.py)):
-- `search_patient_records`: Reranker-based search with optional full FHIR JSON context
-- `retrieve_patient_data`: Direct PostgreSQL hybrid search + reranking
-- `search_clinical_notes`: Clinical notes retrieval with auto resource type detection
-- `get_patient_timeline`: Chronological patient data (async, direct DB query)
+The system registers 28 tools, of which **8 are used by the researcher agent**. The remaining tools are available for direct API use and future agent expansion.
 
-**Medical Terminology** ([api/agent/tools/terminology_tools.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/terminology_tools.py)):
-- `search_icd10`: Search ICD-10 codes via NIH Clinical Tables
-- `validate_icd10_code`: Validate a specific ICD-10 code
-- `lookup_rxnorm`: Drug name lookup via RxNorm REST API
-- `lookup_loinc`: LOINC code lookup via Regenstrief API
+**Researcher Agent Tools (8):**
+1. `search_patient_records` — Hybrid search + cross-encoder reranking
+2. `search_clinical_notes` — Clinical notes retrieval with auto resource type detection
+3. `get_patient_timeline` — Chronological patient data (async, direct SQL)
+4. `cross_reference_meds` — Medication interaction checking
+5. `get_session_context` — Retrieve session summary and recent turns
+6. `search_icd10` — ICD-10 code lookup via NIH Clinical Tables
+7. `calculate` — Safe arithmetic expression evaluator
+8. `get_current_date` — Current date in ISO format
 
-**FDA Tools** ([api/agent/tools/fda_tools.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/fda_tools.py)):
-- `search_fda_drugs`: Drug label search via openFDA
-- `get_drug_recalls`: FDA enforcement/recall data
-- `get_drug_shortages`: Drug shortage information
-- `get_faers_events`: FDA Adverse Event Reporting System data
+**Additional Registered Tools (20):**
 
-**Research Tools** ([api/agent/tools/research_tools.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/research_tools.py)):
-- `search_pubmed`: Medical literature search via NCBI eUtils
-- `search_clinical_trials`: Clinical trial search via ClinicalTrials.gov
-- `get_who_stats`: WHO Global Health Observatory statistics
+*Medical Terminology*:
+- `validate_icd10_code` — Validate a specific ICD-10 code
+- `lookup_rxnorm` — Drug name lookup via RxNorm REST API
+- `lookup_loinc` — LOINC code lookup via Regenstrief API
 
-**Calculators** ([api/agent/tools/calculators.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/calculators.py)):
-- `calculate_gfr`: Glomerular filtration rate (with CKD staging)
-- `calculate_bmi`: Body Mass Index (with category)
-- `calculate_bsa`: Body Surface Area (Mosteller formula)
-- `calculate_creatinine_clearance`: Creatinine clearance (Cockcroft-Gault)
-- `calculate`: Safe arithmetic expression evaluator
+*FDA Tools*:
+- `search_fda_drugs` — Drug label search via openFDA
+- `get_drug_recalls` — FDA enforcement/recall data
+- `get_drug_shortages` — Drug shortage information
+- `get_faers_events` — FDA Adverse Event Reporting System data
 
-**Validators** ([api/agent/tools/dosage_validator.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/dosage_validator.py)):
-- `validate_dosage`: Medication dosage safety check
+*Research Tools*:
+- `search_pubmed` — Medical literature search via NCBI eUtils
+- `search_clinical_trials` — Clinical trial search via ClinicalTrials.gov
+- `get_who_stats` — WHO Global Health Observatory statistics
 
-**Medication Tools** ([api/agent/tools/__init__.py](file:///Users/raph/Documents/hc_ai/api/agent/tools/__init__.py)):
-- `cross_reference_meds`: Check medication list for interaction warnings
+*Calculators*:
+- `calculate_gfr` — Glomerular filtration rate (with CKD staging)
+- `calculate_bmi` — Body Mass Index (with category)
+- `calculate_bsa` — Body Surface Area (Mosteller formula)
+- `calculate_creatinine_clearance` — Creatinine clearance (Cockcroft-Gault)
 
-**Utility Tools**:
-- `get_session_context`: Retrieve session summary and recent turns
-- `get_current_date`: Current date in ISO format
+*Retrieval*:
+- `retrieve_patient_data` — Direct PostgreSQL hybrid search + reranking
+
+*Validators*:
+- `validate_dosage` — Medication dosage safety check
+
+> **Design decision:** The researcher agent uses only 8 tools to keep its decision space manageable. Too many tools increase LLM confusion and latency. The additional 20 tools are registered for direct API callers and can be selectively added to the researcher as needed.
 
 ### Guardrails & Safety
 
@@ -1474,17 +1433,16 @@ def validate_input(query: str) -> bool:
     # Check length
     if len(query) > 10000:
         raise ValueError("Query too long")
-    
+
     # Check for malicious patterns
     if any(pattern in query.lower() for pattern in BLOCKED_PATTERNS):
         raise ValueError("Invalid query content")
-    
+
     return True
 ```
 
 **PII Masking**:
-- **Local**: Regex-based pattern matching for SSN, phone, email
-- **AWS** (planned): Amazon Comprehend Medical for PHI detection
+- Regex-based pattern matching for SSN, phone, email
 
 **Output Validation**:
 - Length checks
@@ -1493,21 +1451,21 @@ def validate_input(query: str) -> bool:
 
 ### Streaming Execution
 
-**Implementation**: [api/agent/router.py](file:///Users/raph/Documents/hc_ai/api/agent/router.py)
+**Implementation**: `api/agent/router.py`
 
 ```python
 @router.post("/query/stream")
 async def query_agent_stream(payload: AgentQueryRequest):
     async def event_generator():
         graph = get_agent()
-        
+
         async for event in graph.astream_events(
             {"messages": [HumanMessage(content=payload.query)]},
             version="v2"
         ):
             # Stream tool calls, LLM tokens, and results
             yield f"data: {json.dumps(event)}\n\n"
-    
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream"
@@ -1526,17 +1484,21 @@ async def query_agent_stream(payload: AgentQueryRequest):
 - `max_iterations`: Hit recursion limit
 - `error`: Error occurred
 
+**SSE Keepalive**: A comment is sent every 15 seconds to prevent the ALB's 60-second idle timeout from killing long-running streams during complex multi-tool queries.
+
 ### Performance
 
-- Simple query (no tools): 1-3 seconds
-- Complex multi-tool query: 5-15 seconds
-- Streaming latency: 100-500ms per update
+- Simple query (conversational, Haiku): 1-3 seconds
+- Simple medical query (Sonnet + 1-2 tools): 3-8 seconds
+- Complex multi-tool query: 10-30 seconds
+- Agent timeout: 300 seconds (configurable via `AGENT_TIMEOUT_SECONDS`)
+- Streaming latency: Real-time SSE updates with 15s keepalive
 
 ---
 
 ## 5. Session Management
 
-**Implementation**: [api/session/store_dynamodb.py](file:///Users/raph/Documents/hc_ai/api/session/store_dynamodb.py), [api/session/router.py](file:///Users/raph/Documents/hc_ai/api/session/router.py)
+**Implementation**: `api/session/store_dynamodb.py`, `api/session/router.py`
 
 **DynamoDB Tables**:
 
@@ -1571,32 +1533,46 @@ async def query_agent_stream(payload: AgentQueryRequest):
 
 ### Session History Injection
 
-Session history can be injected into the agent context to maintain conversation continuity. However, this is **disabled by default** (`ENABLE_SESSION_HISTORY=false`) to prevent cross-session pollution - old responses containing hallucinated data from previous conversations can contaminate new queries.
+Session history can be injected into the agent context to maintain conversation continuity. However, this is **disabled by default** (`ENABLE_SESSION_HISTORY=false`) to prevent cross-session pollution — old responses containing hallucinated data from previous conversations can contaminate new queries.
 
 **Local vs AWS**:
 - Local: DynamoDB Local on port 8001
-- AWS: Managed DynamoDB with on-demand pricing
+- Production: Managed DynamoDB with on-demand pricing (~$2/month)
 
 ---
 
 ## 6. API Architecture
 
-**Unified FastAPI Application**: [api/main.py](file:///Users/raph/Documents/hc_ai/api/main.py)
+**Unified FastAPI Application**: `api/main.py`
 
 ### Router Structure
 
 | Router | Prefix | Purpose |
 |--------|--------|---------|
-| [auth/router.py](file:///Users/raph/Documents/hc_ai/api/auth/router.py) | `/auth` | JWT authentication, email verification, token rotation (planned) |
-| [agent/router.py](file:///Users/raph/Documents/hc_ai/api/agent/router.py) | `/agent` | Agent execution, streaming, prompt reload |
-| [embeddings/router.py](file:///Users/raph/Documents/hc_ai/api/embeddings/router.py) | `/embeddings` | FHIR resource ingestion |
-| [retrieval/router.py](file:///Users/raph/Documents/hc_ai/api/retrieval/router.py) | `/retrieval` | Search, reranking, cache stats |
-| [session/router.py](file:///Users/raph/Documents/hc_ai/api/session/router.py) | `/session` | Conversation management |
-| [database/router.py](file:///Users/raph/Documents/hc_ai/api/database/router.py) | `/db` | Database stats, queue monitoring, patient list |
+| `auth/router.py` | `/auth` | JWT authentication, email verification, token rotation (not yet enforced) |
+| `agent/router.py` | `/agent` | Agent execution, streaming, prompt reload |
+| `embeddings/router.py` | `/embeddings` | FHIR resource ingestion |
+| `retrieval/router.py` | `/retrieval` | Search, reranking, stats |
+| `session/router.py` | `/session` | Conversation management |
+| `database/router.py` | `/db` | Database stats, queue monitoring, patient list, CloudWatch metrics |
 
-### Authentication System (planned)
+### Startup Pre-Warming
 
-> **Status**: Backend endpoints are implemented and the router is mounted, but authentication is **not currently enforced** — no API routes require auth, and the frontend does not use login/registration. Email verification logs to console in dev mode (requires `SENDGRID_API_KEY` for real emails).
+```python
+@app.on_event("startup")
+async def startup():
+    # Pre-warm vector store connection
+    await initialize_vector_store()
+
+    # Pre-warm reranker model (loads sentence-transformers weights)
+    reranker = Reranker(model_name="sentence-transformers/all-MiniLM-L6-v2")
+```
+
+> Cold starts on 0.5 vCPU take 60-90 seconds due to model loading. Pre-warming ensures the first user request doesn't time out.
+
+### Authentication System (not yet enforced)
+
+> **Status**: Backend endpoints are implemented and the router is mounted, but authentication is **not currently enforced** — no API routes require auth, and the frontend does not use login/registration.
 
 **Endpoints**:
 - `POST /auth/register`: Create new user with email verification token
@@ -1612,40 +1588,30 @@ Session history can be injected into the agent context to maintain conversation 
 
 - `POST /agent/reload-prompts`: Reload `prompts.yaml` without server restart (clears cached agents)
 - `GET /db/patients`: List all unique patients in vector store with chunk counts and resource types
+- `GET /db/cloudwatch-metrics`: Fetch CloudWatch metrics for ECS, ALB, and RDS
 - `GET /health`: Overall API health check
 
-### Dual-Provider LLM Support (planned)
+### Deployment Architecture
 
-> **Status**: Both Ollama and Bedrock provider code paths are implemented in `config.py`, but only Ollama is used in the current local development setup. Bedrock is scaffolded for the AWS production migration.
+**Backend (ECS Fargate)**:
+- Docker image: Python 3.12-slim base
+- Single-worker uvicorn (`--workers 1`)
+- Non-root container user
+- Health check: `/health` endpoint with 60s start period
+- CI/CD: GitHub Actions → ECR → ECS task definition update → force new deployment
 
-The API supports both local (Ollama) and cloud (AWS Bedrock) LLM providers via `LLM_PROVIDER` environment variable:
-
-```bash
-# Local development (current)
-LLM_PROVIDER=ollama
-LLM_MODEL=qwen2.5:32b
-
-# AWS production (planned)
-LLM_PROVIDER=bedrock
-LLM_MODEL=sonnet  # or haiku
-```
-
-**Current Deployment**:
-- Local uvicorn on port 8000
-- Hot reload for development
-
-**AWS Deployment** (planned):
-- AWS App Runner for containerized deployment
-- Auto-scaling based on traffic
-- Health check integration
+**Frontend (Vercel)**:
+- Next.js 16.1 with React 19.2
+- Automatic deployments on push to main
+- Vercel Web Analytics enabled
 
 ---
 
 ## 7. Frontend Interface
 
-**Technology Stack**: Next.js 16.1.2 + React 19.2.3 + TypeScript 5 + Material-UI 7.3.7
+**Technology Stack**: Next.js 16.1 + React 19.2 + TypeScript 5.9 + Material-UI 7.3 + TailwindCSS 4
 
-**Additional Libraries**: Recharts (visualization), Tremor (dashboard), TanStack React Query, Radix UI primitives, Emotion (CSS-in-JS)
+**Additional Libraries**: Recharts (visualization), Framer Motion (animations), Lucide React (icons), Sonner (toasts), Vercel Analytics
 
 **Note**: Frontend was vibe-coded with focus on functionality over architecture. Not the primary technical showcase of this project.
 
@@ -1657,7 +1623,7 @@ The application uses a responsive 3-panel layout:
 |-------|----------|-------|---------|
 | **ChatPanel** | Left | 68% | Chat messages, input, patient selector |
 | **WorkflowPanel** | Right top | 32% | Agent processing visualization, tool calls |
-| **ObservabilityPanel** | Right bottom | 32% | Service health, metrics, LangSmith traces (planned) |
+| **ObservabilityPanel** | Right bottom | 32% | CloudWatch metrics, pipeline health |
 
 ### Component Architecture
 
@@ -1669,32 +1635,33 @@ The application uses a responsive 3-panel layout:
 **Workflow Components** (`src/components/workflow/`):
 - `WorkflowPanel`: Real-time agent processing visualization
 - `ReferencePanel`: Patient data reference and prompt display
-- `ThinkingPanel`: Debug mode - shows agent's internal reasoning
+- `ThinkingPanel`: Debug mode — shows agent's internal reasoning
 
 **Observability Components** (`src/components/observability/`):
-- `ObservabilityPanel`: Dashboard with service health, cache stats, DB pool metrics
+- `ObservabilityPanel`: Dashboard with CloudWatch metrics, sparklines, and trend indicators
+- `MetricsCard`: Reusable card with value, sparkline, and trend badge
 
 ### RAG Pipeline Visualization
 
-The WorkflowPanel visualizes the 6-step RAG pipeline in real-time:
+The WorkflowPanel visualizes the 6-step RAG pipeline in real-time with per-step timing:
 
 1. **Query Input** → User's question received
-2. **PII Masking** → Sensitive data redacted
-3. **Vector Search** → Hybrid search executed
-4. **Reranking** → Cross-encoder refinement
-5. **LLM ReAct** → Agent reasoning with tools
-6. **Response** → Final answer generated
+2. **PII Masking** → Sensitive data patterns detected
+3. **Vector Search** → Hybrid BM25 + semantic search executed
+4. **Filtering** → Auto resource-type detection and filtering
+5. **Researcher** → Claude 3.5 Sonnet reasoning with tools
+6. **Response** → Final answer synthesized (shows total latency)
 
 ### Custom Hooks
 
 | Hook | File | Purpose |
 |------|------|---------|
 | `useChat` | `src/hooks/useChat.ts` | Chat state: messages, loading, streaming, send/stop/clear |
-| `useWorkflow` | `src/hooks/useWorkflow.ts` | Pipeline visualization: stages, tool calls, processing state |
-| `useObservability` | `src/hooks/useObservability.ts` | Health/metrics: service health, reranker stats, DB stats |
+| `useWorkflow` | `src/hooks/useWorkflow.ts` | Pipeline visualization: stages, tool calls, step timing |
+| `useObservability` | `src/hooks/useObservability.ts` | CloudWatch metrics: ECS CPU/Memory, ALB latency, RDS stats |
 | `useSessions` | `src/hooks/useSessions.ts` | Session management: list, create, active session, load/save |
 | `useUser` | `src/hooks/useUser.ts` | Auth: login, register, logout, current user |
-| `useLeadCapture` | `src/hooks/useLeadCapture.ts` | Lead capture modal: triggers after N messages (planned - backend submission not yet implemented) |
+| `useLeadCapture` | `src/hooks/useLeadCapture.ts` | Lead capture modal: triggers after N messages |
 
 ### SSE Streaming Architecture
 
@@ -1710,14 +1677,14 @@ type StreamEvent = {
 ```
 
 **Stream Callbacks**:
-- `onStatus(message)` - Status updates
-- `onTool(toolName, input)` - Tool invocation
-- `onToolResult(toolName, output)` - Tool completion
-- `onResearcherOutput(output, iteration)` - Researcher node output
-- `onValidatorOutput(output, result, iteration)` - Validator output
-- `onResponseOutput(output, iteration)` - Response synthesis
-- `onComplete(data)` - Final response with sources
-- `onError(error)` - Error handling
+- `onStatus(message)` — Status updates
+- `onTool(toolName, input)` — Tool invocation
+- `onToolResult(toolName, output)` — Tool completion
+- `onResearcherOutput(output, iteration)` — Researcher node output
+- `onValidatorOutput(output, result, iteration)` — Validator output
+- `onResponseOutput(output, iteration)` — Response synthesis
+- `onComplete(data)` — Final response with sources
+- `onError(error)` — Error handling
 
 ### Patient Personas
 
@@ -1729,15 +1696,16 @@ The application includes 8 featured patient personas with pre-loaded FHIR data f
 ### Additional Features
 
 - **Debug Mode**: ThinkingPanel reveals agent's internal reasoning, tool call details, and search trajectories
-- **Observability Dashboard**: Pie charts for cache hit/miss rates, bar charts for DB connection pool status
-- **Lead Capture Modal** (planned): UI triggers after N messages, but backend submission is not yet implemented
+- **Observability Dashboard**: CloudWatch metrics (ECS CPU/Memory, ALB p50/p99 latency, request counts, RDS connections) displayed as sparkline cards with trend indicators
+- **Lead Capture Modal**: UI triggers after N messages
 - **Session Management UI**: Create, list, switch between, and delete conversation sessions
+- **Vercel Web Analytics**: Page view and interaction tracking
 
 ---
 
 ## 8. Metrics & Evaluation
 
-**RAGAS Framework** (POC): [POC_RAGAS/](file:///Users/raph/Documents/hc_ai/POC_RAGAS)
+**RAGAS Framework** (POC): `POC_RAGAS/`
 
 > **Status**: Standalone evaluation framework, not integrated into the main application. Used for offline agent quality testing.
 
@@ -1748,23 +1716,32 @@ The application includes 8 featured patient personas with pre-loaded FHIR data f
 
 ### Observability Dashboard
 
-The frontend provides a real-time observability dashboard (ObservabilityPanel) displaying:
+The frontend provides a real-time observability dashboard displaying CloudWatch metrics with sparkline trends:
 
-- **Service Health Checks**: Live status for Agent, Reranker, Embeddings, and PostgreSQL services
-- **Cache Performance**: Pie chart showing cache hit/miss ratios for the reranking layer
-- **Database Pool Stats**: Bar chart showing active, idle, and overflow connection counts
-- **LangSmith Traces** (planned): UI placeholder for LangSmith trace links (not yet integrated into main app)
-- **Queue Statistics**: Queued, processed, failed, and retrying chunk counts
+**CloudWatch Metrics Fetched** (5-minute aggregation, 60s cache):
 
-### Metrics Tracked
+| Metric | Source | Statistic |
+|--------|--------|-----------|
+| ECS CPU Utilization | ECS Service | Average |
+| ECS Memory Utilization | ECS Service | Average |
+| ALB Request Count | Application Load Balancer | Sum |
+| ALB Response Time (p50) | Application Load Balancer | p50 |
+| ALB Response Time (p99) | Application Load Balancer | p99 |
+| RDS CPU Utilization | RDS Instance | Average |
+| RDS Database Connections | RDS Instance | Average |
 
-- Query latency (p50, p95, p99)
-- Token usage (input/output tokens)
-- Retrieval performance (candidates retrieved, reranking time)
-- Cache hit rates (90%+ for repeated queries)
-- Database connection pool stats (pool_size, checked_out, overflow)
-- Queue processing stats (queued, processed, failed, retries)
+Each metric is displayed as a card with:
+- Current value
+- 3-hour sparkline trend
+- Trend indicator (comparing latest to baseline)
+
+### Additional Metrics Tracked
+
+- Pipeline step timing (per-message, per-step start/end times)
+- Tool call counts and durations (via SSE events)
 - Agent iteration counts and search attempt trajectories
+- Reranker model status and health
+- Database connection pool stats (pool_size, checked_out, overflow)
 
 ### System Health Endpoints
 
@@ -1773,224 +1750,194 @@ The frontend provides a real-time observability dashboard (ObservabilityPanel) d
 | `GET /health` | Overall API health |
 | `GET /agent/health` | Agent system status |
 | `GET /retrieval/rerank/health` | Reranker model status |
-| `GET /retrieval/rerank/stats` | Cache hit rate, performance metrics |
+| `GET /retrieval/rerank/stats` | Performance metrics |
 | `GET /db/stats` | Database connection pool stats |
 | `GET /db/queue` | Queue processing statistics |
+| `GET /db/cloudwatch-metrics` | CloudWatch metrics (ECS, ALB, RDS) |
 
 ---
 
-## 9. AWS Migration Plan
+## 9. AWS Production Architecture
 
-### Service Mapping
+### The Migration Journey
 
-| Component | Local | AWS Service | Rationale |
-|-----------|-------|-------------|-----------|
-| FHIR Storage | Local filesystem | S3 Standard | Durable, scalable object storage |
-| VPC Transfer | N/A | S3 Gateway Endpoint | Free data transfer within VPC |
-| API | FastAPI + uvicorn | App Runner | Managed containers, auto-scaling |
-| Embeddings | Ollama (mxbai-embed-large) | Bedrock Titan | Managed, pay-per-use, lower latency |
-| LLM | Ollama (qwen2.5:32b) | Bedrock Claude | Managed, enterprise-grade, Sonnet/Haiku options |
-| Vector DB | PostgreSQL + pgvector | RDS PostgreSQL | Multi-AZ, automated backups, managed |
-| Sessions | DynamoDB Local | DynamoDB | On-demand pricing, serverless, auto-scaling |
-| Observability | Local logs | LangSmith (planned) | Agent tracing, debugging, analytics |
-| Monitoring | Manual | CloudWatch (TBD) | Logs, metrics, alarms |
-| IaC | Manual setup | CDK (planned) | Reproducible, version-controlled infrastructure |
+The system was developed locally with zero cloud costs, then migrated to AWS. This wasn't a one-step process — each migration phase revealed production-only issues that required engineering solutions.
 
-### Cost Optimization Strategies
+**Phase 1 — Local Development** (completed):
+- Full stack on local machine: PostgreSQL, DynamoDB Local, Ollama
+- Fast iteration with hot reload
+- Zero cost during development
 
-1. **RDS Reserved Instances**: 46% savings over on-demand
-2. **DynamoDB On-Demand**: Pay only for actual usage, no idle costs
-3. **Bedrock Pay-per-Token**: No infrastructure costs, scale to zero
-4. **App Runner Auto-Scaling**: Scale down during low traffic
-5. **S3 Intelligent-Tiering**: Automatic cost optimization for data storage
-6. **S3 Gateway Endpoint**: Free VPC data transfer (vs NAT Gateway costs)
+**Phase 2 — Database Migration** (completed):
+- Migrated PostgreSQL to RDS (db.t4g.small)
+- Discovered: IVFFlat index (~30GB) doesn't fit in 2GB RAM → disk-bound queries
+- Discovered: GIN indexes useless for JSONB equality filters → added btree indexes
+- Discovered: `CREATE INDEX CONCURRENTLY` can silently fail → verify via `pg_index`
 
-### Estimated Monthly Costs (Moderate Usage)
+**Phase 3 — Compute Migration** (completed):
+- Migrated API to ECS Fargate (0.5 vCPU, 2GB RAM)
+- Discovered: Self-referencing HTTP calls deadlock on single-worker uvicorn → call functions directly
+- Discovered: Sync `reranker.rerank_with_scores()` blocks event loop → `asyncio.to_thread()`
+- Discovered: Sync `bedrock.invoke_model()` blocks event loop → `asyncio.to_thread()`
+- These bugs **unmasked each other in sequence** — fixing one revealed the next
 
-| Service | Configuration | Est. Cost |
-|---------|--------------|-----------|
-| RDS PostgreSQL | db.r6g.xlarge, Multi-AZ, 500GB | $408 |
-| RDS (Reserved) | 1-year reserved instance | $190 |
-| DynamoDB | On-demand, ~1M requests/month | $15-30 |
-| Bedrock Titan | ~10M tokens/month embeddings | $30-50 |
-| Bedrock Claude | ~5M tokens/month (Haiku) | $20-40 |
-| App Runner | 1 vCPU, 2GB RAM, auto- scale | $50-100 |
-| S3 Storage | 100GB FHIR data | $2 |
-| CloudWatch | Basic monitoring | $10-20 |
-| LangSmith | Agent tracing (if enabled) | $50-100 |
-| **Total (On-Demand)** | | **~$585-750** |
-| **Total (Optimized)** | With reserved instance | **~$367-532** |
+**Phase 4 — LLM Migration** (completed):
+- Switched from Ollama to Bedrock (Claude 3.5 Sonnet + Haiku)
+- Added 15s SSE keepalive to prevent ALB 60s idle timeout
+
+**Phase 5 — Observability** (completed):
+- CloudWatch metrics integration (ECS, ALB, RDS)
+- Frontend dashboard with sparklines and trend indicators
+- Pipeline step timing visualization
+
+### Current Service Mapping
+
+| Component | Local Development | AWS Production |
+|-----------|-------------------|----------------|
+| FHIR Storage | Local filesystem | S3 Standard |
+| API | FastAPI + uvicorn | ECS Fargate (0.5 vCPU, 2GB) |
+| Embeddings | Ollama (mxbai-embed-large) | Bedrock Titan Embeddings v2 |
+| LLM | Ollama (qwen2.5:32b) | Bedrock Claude 3.5 (Sonnet + Haiku) |
+| Vector DB | PostgreSQL + pgvector (Docker) | RDS PostgreSQL 16 (db.t4g.small) |
+| Sessions | DynamoDB Local | DynamoDB (on-demand) |
+| Frontend | Next.js dev server | Vercel |
+| Monitoring | Console logs | CloudWatch |
+| CI/CD | Manual | GitHub Actions → ECR → ECS |
+
+### Monthly Cost Breakdown
+
+| Service | Configuration | Monthly Cost |
+|---------|--------------|-------------|
+| RDS PostgreSQL | db.t4g.small (2 vCPU, 2GB), 250GB gp3 | ~$52 |
+| ECS Fargate | 0.5 vCPU, 2GB RAM, 24/7 | ~$21 |
+| Bedrock Claude | Sonnet ($3/$15 per 1M in/out tokens) + Haiku ($0.80/$4 per 1M in/out tokens) | ~$46 |
+| Bedrock Titan | Embeddings v2 ($0.02 per 1M tokens) | ~$0.20 |
+| DynamoDB | On-demand (session reads/writes) | ~$2 |
+| S3 | ~100GB FHIR data | ~$2.50 |
+| ECR | Docker image storage | ~$0.20 |
+| **Total** | | **~$124/mo** |
+
+**Cost Notes**:
+- Bedrock costs scale linearly with usage — 10x traffic would push Bedrock costs to ~$460/mo
+- RDS reserved instance (1-year) would reduce to ~$25/mo (-52%)
+- DynamoDB and S3 are negligible at current usage levels
+- Does not include: data transfer egress, NAT Gateway (if used: ~$33/mo), Route 53 DNS
+
+### CI/CD Pipeline
+
+**GitHub Actions Workflow** (`.github/workflows/deploy.yml`):
+
+1. **Trigger**: Push to `main` branch (only when `api/`, `Dockerfile`, or workflow files change)
+2. **Build**: Docker image built and tagged with commit SHA
+3. **Push**: Image pushed to ECR with both SHA tag and `latest`
+4. **Register**: New ECS task definition registered (swaps image in current definition)
+5. **Deploy**: ECS service updated with `--force-new-deployment`
+6. **Auth**: OIDC-based AWS credential assumption (no long-lived keys)
+
+```yaml
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
+```
+
+---
+
+## 10. What I'd Do With More Resources
+
+The current system runs at ~$124/month on minimal infrastructure. Here's what would improve with additional budget:
+
+### More RAM for RDS (~$350/mo → db.r6g.xlarge)
+
+The biggest performance bottleneck is the IVFFlat index (~30GB) not fitting in the db.t4g.small's 2GB RAM. Upgrading to db.r6g.xlarge (32GB RAM) would:
+- **Fit the entire IVFFlat index in memory** → ANN queries drop from disk-bound (~100-500ms) to memory-speed (~10-50ms)
+- Enable effective use of `effective_cache_size` tuning
+- Support larger `work_mem` for complex sort/hash operations
+
+### HNSW Index Migration
+
+With sufficient RAM, switching from IVFFlat to HNSW would provide:
+- **Better recall at the same speed**: HNSW consistently outperforms IVFFlat for ANN search
+- **Better composition with WHERE filters**: Unlike IVFFlat which scans globally then filters, HNSW navigates the graph with filter awareness
+- **No reindexing needed for inserts**: IVFFlat requires periodic retraining of centroids after bulk inserts; HNSW handles incremental updates naturally
+- **Trade-off**: HNSW indexes are larger and slower to build (~2-3x build time)
+
+### Dedicated Vector Database
+
+At significantly larger scale (100M+ vectors), a dedicated vector database (Pinecone, Weaviate, Qdrant) would provide:
+- Purpose-built ANN algorithms optimized for vector workloads
+- Built-in metadata filtering that composes with vector search
+- Horizontal scaling without PostgreSQL's single-instance constraints
+- Managed infrastructure with automatic index optimization
+
+### Multi-AZ and High Availability
+
+- RDS Multi-AZ deployment for automatic failover (1-2 minute recovery)
+- Multiple ECS tasks behind ALB for load balancing and zero-downtime deploys
+- Cross-region replication for disaster recovery
+
+### More ECS Resources
+
+- **More vCPUs**: Cross-encoder reranking is CPU-bound; more vCPUs = faster reranking
+- **More RAM**: Larger model loading, more concurrent requests
+- **Multiple workers**: Currently single-worker due to 0.5 vCPU constraint; more resources enable multi-worker uvicorn
+
+### LangSmith Integration
+
+- End-to-end agent execution tracing
+- Tool call latency breakdown
+- Token usage analytics per query
+- Regression detection across agent versions
 
 ### Infrastructure as Code (CDK)
 
-**Planned Implementation**:
-```typescript
-// AWS CDK stack structure
+- Reproducible infrastructure with version control
+- Environment parity (dev/staging/prod)
+- Automated resource provisioning and teardown
+- Cost tagging and allocation
 
-import * as cdk from 'aws-cdk-lib';
-import * as rds from 'aws-cdk-lib/aws-rds';
-import * as apprunner from '@aws-cdk/aws-apprunner-alpha';
+### Enhanced PII Protection
 
-export class HcAiStack extends cdk.Stack {
-  constructor(scope: Construct, id: string) {
-    super(scope, id);
-    
-    // RDS PostgreSQL with pgvector
-    const db = new rds.DatabaseInstance(this, 'HcAiDB', {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16
-      }),
-      instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.R6G,
-        ec2.InstanceSize.XLARGE
-      ),
-      multiAz: true,
-      // ... additional config
-    });
-    
-    // App Runner service
-    const service = new apprunner.Service(this, 'HcAiAPI', {
-      source: apprunner.Source.fromEcrPublic({
-        imageConfiguration: {
-          port: 8000,
-        },
-      }),
-      cpu: apprunner.Cpu.ONE_VCPU,
-      memory: apprunner.Memory.TWO_GB,
-    });
-    
-    // DynamoDB tables
-    // S3 buckets
-    // CloudWatch alarms
-    // etc...
-  }
-}
-```
+- AWS Comprehend Medical for PHI detection (vs current regex-based approach)
+- More robust entity recognition (medical records, insurance IDs)
+- Automated de-identification pipelines
 
-### Deployment Strategy
+### Authentication Enforcement
 
-**Phases**:
-1. **Phase 1**: Migrate database (RDS PostgreSQL)
-2. **Phase 2**: Migrate API (App Runner)
-3. **Phase 3**: Switch to Bedrock for embeddings/LLM
-4. **Phase 4**: Enable monitoring (CloudWatch, LangSmith)
-5. **Phase 5**: Optimize costs (reserved instances, right-sizing)
-
----
-
-## 10. Items Requiring Future Definition
-
-The following architectural decisions need further specification before production deployment:
-
-### Security & Access Control (TBD)
-
-**IAM Policies**:
-- Define granular IAM roles for each service
-- Least-privilege access principles
-- Service-to-service authentication
-
-**Security Groups**:
-- VPC security group rules for RDS
-- App Runner egress rules
-- Database access controls
-
-**Secrets Management**:
-- AWS Secrets Manager for API keys
-- Rotation policies
-- Encryption key management
-
-### Network Architecture (TBD)
-
-**VPC Design**:
-- Public vs private subnets
-- NAT Gateway vs S3 Gateway Endpoint placement
-- Multi-AZ subnet distribution
-
-**Routing**:
-- Route table configurations
-- Internet Gateway setup
-- VPC peering (if needed)
-
-### Monitoring & Alerting (TBD)
-
-**CloudWatch Configuration**:
-- Custom metrics to track
-- Log retention policies
-- Dashboard layouts
-
-**Alarms**:
-- CPU/memory thresholds
-- Database connection limits
-- Error rate alerts
-- Cost anomaly detection
-
-**LangSmith Integration**:
-- Tracing configuration
-- Cost monitoring
-- Agent performance analytics
-
-### CDK Implementation Details (TBD)
-
-**Stack Organization**:
-- Separate stacks for database, compute, networking
-- Cross-stack references
-- Environment-specific configurations (dev/staging/prod)
-
-**CI/CD Pipeline**:
-- Deployment automation
-- Testing gates
-- Rollback procedures
-
-### Cost Management (TBD)
-
-**Budget Alerts**:
-- Monthly spending thresholds
-- Service-level budgets
-- Cost allocation tags
-
-**Optimization Opportunities**:
-- Spot instances for batch processing
-- Reserved capacity analysis
-- S3 lifecycle policies
-- Database sizing based on actual traffic
+- Enable the existing JWT auth system (backend is implemented, frontend needs login UI)
+- Role-based access control for different user types
+- Audit logging for compliance
 
 ---
 
 ## Conclusion
 
-This documentation showcases a **production-ready healthcare RAG system** demonstrating:
+This documentation showcases a **production healthcare RAG system** that evolved from local development to a lean AWS deployment:
 
-✅ **Full-Stack Engineering**: Go parser, Python API, PostgreSQL, Next.js frontend
-✅ **AI/ML Expertise**: Vector embeddings, semantic search, reranking, LLM agents
-✅ **Production Architecture**: Queue systems, retry logic, connection pooling, caching
-✅ **Cost-Conscious Design**: Local development → AWS with clear optimization strategy
-✅ **Operational Excellence**: Comprehensive observability, error tracking, monitoring
-✅ **Healthcare Domain Knowledge**: FHIR standards, medical terminology, clinical workflows
+- **Full-Stack Engineering**: Go parser, Python API, PostgreSQL, Next.js frontend
+- **AI/ML Expertise**: Vector embeddings, hybrid search, cross-encoder reranking, multi-model LLM agent
+- **Production Challenges Solved**: Sync I/O deadlocks, IVFFlat scaling, index validation, event loop blocking, ALB timeout management
+- **Cost-Conscious Design**: Running at ~$124/month serving 91K patients and 7.7M vector chunks
+- **Operational Maturity**: CloudWatch observability, CI/CD pipeline, structured debug logging
 
 **Key Technical Achievements**:
 - **8-stage data pipeline** with JSON-aware chunking and metadata extraction
-- **Hybrid retrieval** combining semantic + keyword search with reranking
-- **Multi-agent system** with 24 healthcare-specific tools
-- **Sub-100ms query latency** with 90%+ cache hit rate
-- **AWS migration plan** with 46% cost optimization via reserved instances
-
-This system is ready for:
-- Demo deployments to showcase capabilities
-- Further development and feature additions
-- Production scaling on AWS infrastructure
-- Integration with real FHIR data sources (with appropriate PHI handling)
+- **Hybrid retrieval** combining semantic + keyword search with cross-encoder reranking
+- **Multi-model agent** with 28 healthcare-specific tools (8 active in researcher)
+- **Production-proven** on ECS Fargate with PostgreSQL 16 + pgvector
+- **Honest engineering**: Cache strategies tested and documented when ineffective, production bugs catalogued as learning opportunities
 
 ---
 
 **Documentation Metadata**:
-- Created: 2026-01-28
+- Last Updated: 2026-02-14
 - Author: Technical Documentation for Portfolio
 - Purpose: Showcase full-stack AI engineering skills
-- Status: Core sections complete, AWS details TBD per section 10
+- Status: Production system, actively maintained
 
 ---
 
 *End of Technical Documentation*
-
-
-

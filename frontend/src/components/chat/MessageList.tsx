@@ -52,7 +52,7 @@ export function MessageList({ messages, onFeedback, onRegenerate }: MessageListP
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
           Ask questions about clinical data powered by retrieval-augmented generation.
-          Your queries are processed through PII masking, vector search, and Claude 3.5 Haiku.
+          Your queries are processed through PII masking, vector search, and Claude 3.5 Sonnet.
         </Typography>
         <Box sx={{ mt: 2 }}>
           <Typography variant="caption" color="text.disabled">
