@@ -1,4 +1,4 @@
-# hc_ai - Healthcare RAG System: Technical Documentation
+# Atlas - Healthcare RAG System: Technical Documentation
 
 > **Professional Portfolio:** This documentation showcases a production healthcare RAG system demonstrating expertise in full-stack AI engineering, cloud architecture, and cost-conscious system design. The system evolved from a local development environment to a lean AWS production deployment serving real queries at ~$124/month.
 
@@ -23,7 +23,7 @@
 
 ### Executive Summary
 
-**hc_ai** is a production Retrieval-Augmented Generation (RAG) system designed for healthcare applications. It processes synthetic FHIR (Fast Healthcare Interoperability Resources) data, generates semantic embeddings, and provides intelligent query capabilities through a multi-agent AI system.
+**Atlas** is a production Retrieval-Augmented Generation (RAG) system designed for healthcare applications. It processes synthetic FHIR (Fast Healthcare Interoperability Resources) data, generates semantic embeddings, and provides intelligent query capabilities through a multi-agent AI system.
 
 **Production Scale:**
 - **91,000 patients** with complete medical histories
@@ -1263,7 +1263,7 @@ This retrieval system demonstrates:
 
 ## 4. Agent System & LangGraph
 
-The agent system is the brain of hc_ai, orchestrating retrieval, medical knowledge lookup, and response generation through a LangGraph state machine.
+The agent system is the brain of Atlas, orchestrating retrieval, medical knowledge lookup, and response generation through a LangGraph state machine.
 
 ![Agent Architecture](/agent_architecture.png)
 

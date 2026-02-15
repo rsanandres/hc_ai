@@ -1,7 +1,7 @@
-# HC AI Project History
+# Atlas Project History
 
 ## Overview
-6-week development history of the HC AI medical platform, reconstructed from git commits, Obsidian daily notes, Claude Code memory, and AWS deployment logs. Covers the full journey from first commit to production deployment.
+6-week development history of the Atlas medical platform (formerly HC AI), reconstructed from git commits, Obsidian daily notes, Claude Code memory, and AWS deployment logs. Covers the full journey from first commit to production deployment.
 
 ---
 
@@ -291,7 +291,7 @@ This day was about making the deployment pipeline reliable and the system observ
 - **Pipeline visualization fixes** — Correct model names (Sonnet/Haiku, not Ollama), proper step transitions, cleaned null details
 - **LangSmith removal** — Stripped all frontend LangSmith integration (6 files, -170 lines). Not needed with CloudWatch.
 
-#### Backports from hc_ai_mcp
+#### Backports from atlas_mcp (formerly hc_ai_mcp)
 - Timeline `ORDER BY` fix (dates were unsorted)
 - Reranker score propagation to frontend
 - Metadata key whitelist (cleaned noisy fields from display)

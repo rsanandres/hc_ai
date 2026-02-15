@@ -261,7 +261,7 @@ def generate_markdown_report(results: List[TestResult], output_path: str) -> str
 
     # Build markdown
     lines = [
-        "# HC AI Agent Test Report",
+        "# Atlas Agent Test Report",
         "",
         f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",

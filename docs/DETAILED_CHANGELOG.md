@@ -1,4 +1,4 @@
-# HC AI Detailed Changelog
+# Atlas Detailed Changelog
 
 Complete file-level history reconstructed from git commits.
 
@@ -537,7 +537,7 @@ Complete file-level history reconstructed from git commits.
 | M | `frontend/src/app/page.tsx` - Removed LangSmith integration |
 | M | 4 other files - Stripped LangSmith references (-170 lines total) |
 
-**Backports from hc_ai_mcp:**
+**Backports from atlas_mcp (formerly hc_ai_mcp):**
 | Action | Files |
 |--------|-------|
 | M | `api/agent/tools/retrieval.py` - Timeline ORDER BY fix |

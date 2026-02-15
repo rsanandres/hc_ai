@@ -1,4 +1,4 @@
-"""Utility modules for the hc_ai project."""
+"""Utility modules for the Atlas project."""
 
 from utils.env_loader import load_env_recursive
 

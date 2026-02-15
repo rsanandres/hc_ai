@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'HC AI — Healthcare RAG Demo';
+export const alt = 'Atlas — Healthcare RAG Demo';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -69,7 +69,7 @@ export default function OGImage() {
               letterSpacing: '-0.02em',
             }}
           >
-            HC AI
+            Atlas
           </div>
         </div>
 

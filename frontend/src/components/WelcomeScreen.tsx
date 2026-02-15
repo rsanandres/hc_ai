@@ -120,7 +120,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
             <Activity size={28} color={theme.palette.primary.main} />
             <Typography variant="h3" fontWeight={700} sx={{ letterSpacing: '-0.02em' }}>
-              HC AI
+              Atlas
             </Typography>
           </Box>
 

@@ -5,7 +5,7 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@hc-ai.com")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@atlas.rsanandres.com")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
@@ -30,10 +30,10 @@ def send_verification_email(email: str, token: str) -> bool:
     message = Mail(
         from_email=FROM_EMAIL,
         to_emails=email,
-        subject="Verify Your Email - HC AI",
+        subject="Verify Your Email - Atlas",
         html_content=f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Welcome to HC AI!</h2>
+            <h2 style="color: #333;">Welcome to Atlas!</h2>
             <p>Please verify your email address to complete your registration.</p>
             <p>
                 <a href="{verify_url}" 

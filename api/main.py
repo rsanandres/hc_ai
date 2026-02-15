@@ -28,7 +28,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI app
 app = FastAPI(
-    title="HC AI Unified API",
+    title="Atlas Unified API",
     description="Unified API for agent, embeddings, retrieval, session, and database services",
     version="1.0.0",
 )
@@ -130,7 +130,7 @@ async def _on_startup() -> None:
 async def root():
     """Root endpoint with API information."""
     return {
-        "message": "HC AI Unified API",
+        "message": "Atlas Unified API",
         "version": "1.0.0",
         "endpoints": {
             "auth": "/auth/*",  # NEW

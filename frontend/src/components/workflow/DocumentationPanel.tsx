@@ -39,7 +39,7 @@ export function DocumentationPanel() {
                                 Technical Documentation
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Comprehensive technical documentation showcasing the architecture, design, and implementation of the hc_ai Healthcare RAG system.
+                                Comprehensive technical documentation showcasing the architecture, design, and implementation of the Atlas Healthcare RAG system.
                             </Typography>
                         </Box>
                     </Box>

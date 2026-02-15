@@ -1,6 +1,6 @@
-# HC AI — AWS Migration Analysis
+# Atlas — AWS Migration Analysis
 
-Cross-reference of the Obsidian 3-month project plan, hc_ai kanban, AWS Flowchart canvas, and actual codebase state. This document covers what's done, what's left, and a recommended AWS deployment path.
+Cross-reference of the Obsidian 3-month project plan, Atlas kanban, AWS Flowchart canvas, and actual codebase state. This document covers what's done, what's left, and a recommended AWS deployment path.
 
 ---
 
@@ -26,7 +26,7 @@ Cross-reference of the Obsidian 3-month project plan, hc_ai kanban, AWS Flowchar
 | **Week 1** — Agentic Reasoning (LangGraph) | ReAct loop, tool selection, stopping conditions | **Done.** `api/agent/multi_agent_graph.py` — LangGraph DAG with query classification, researcher, validator, responder nodes. Death-loop prevention, search trajectory tracking. Simple mode (2 nodes) and complex mode (3 nodes, 15 max iterations). |
 | **Week 2** — Tool Use & Function Calling | JSON schemas, FHIR/HL7 APIs | **Done.** 24 tools across 6 categories: patient retrieval, terminology (ICD-10, LOINC, RxNorm), FDA drug safety (recalls, shortages, FAERS), clinical calculators (eGFR, BMI, BSA, creatinine clearance, dosage validation, drug interactions), research (PubMed, ClinicalTrials.gov, WHO). |
 | **Week 3** — Multi-Agent Orchestration | Supervisor → Researcher + Validator | **Done.** Classification node routes to medical vs conversational path. Researcher uses tools, optional Validator checks codes. Response synthesizer formats output. |
-| **Week 4** — MCP Server | Python/Go MCP server for IDE integration | **Done.** Separate repo [`hc_ai_mcp`](https://github.com/rsanandres/hc-ai-mcp) — FastMCP server with 15 tools (agent, retrieval, session, embeddings), stdio + streamable-http transport, works with Claude Desktop and Cursor. Already supports `LLM_PROVIDER=bedrock`. |
+| **Week 4** — MCP Server | Python/Go MCP server for IDE integration | **Done.** Separate repo [`atlas_mcp`](https://github.com/rsanandres/atlas_mcp) — FastMCP server with 15 tools (agent, retrieval, session, embeddings), stdio + streamable-http transport, works with Claude Desktop and Cursor. Already supports `LLM_PROVIDER=bedrock`. |
 
 **Deviation from plan:** MCP was built as a separate companion repo rather than embedded in hc_ai. The agent system is significantly more sophisticated than planned — 24 tools vs the original "a few tools," auto-resource detection, patient context auto-injection, PII masking on input/output. CrewAI was dropped for LangGraph (correct call).
 
@@ -58,7 +58,7 @@ Cross-reference of the Obsidian 3-month project plan, hc_ai kanban, AWS Flowchar
 | Auth (JWT) | Complete | — |
 | RAGAS evaluation | POC done | Integrate into CI |
 | LangSmith observability | Partial | Add CloudWatch |
-| MCP server | **Complete** | Done in [hc_ai_mcp](https://github.com/rsanandres/hc-ai-mcp) — 15 tools, stdio + HTTP transport |
+| MCP server | **Complete** | Done in [atlas_mcp](https://github.com/rsanandres/atlas_mcp) — 15 tools, stdio + HTTP transport |
 | AWS infrastructure (IaC) | Not started | **Primary gap** |
 | CI/CD pipeline | Not started | **Required for AWS** |
 
@@ -293,7 +293,7 @@ Your canvas says "Claude Haiku" for both agents — Haiku is the right call for 
 
 | Item | Recommendation | Reason |
 |------|---------------|--------|
-| **MCP Server** | **Done** — see [hc_ai_mcp](https://github.com/rsanandres/hc-ai-mcp). Separate repo with FastMCP server (stdio + streamable-http), 15 tools, LangGraph agent, hybrid search, reranker, session management. Works with Claude Desktop and Cursor. Already supports Bedrock via `LLM_PROVIDER=bedrock`. |
+| **MCP Server** | **Done** — see [atlas_mcp](https://github.com/rsanandres/atlas_mcp). Separate repo with FastMCP server (stdio + streamable-http), 15 tools, LangGraph agent, hybrid search, reranker, session management. Works with Claude Desktop and Cursor. Already supports Bedrock via `LLM_PROVIDER=bedrock`. |
 | **OpenSearch** | Skip | Your pgvector hybrid search already works. OpenSearch adds cost and complexity for marginal gain at your data scale. |
 | **SageMaker for reranker** | Skip | Bundle reranker in container. SageMaker endpoint adds $50+/mo for a model that runs in <500ms on CPU. |
 | **Complex graph mode** | Deprioritize | Simple mode is more reliable. Enable complex mode as a feature flag for demos. |

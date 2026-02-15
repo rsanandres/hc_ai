@@ -21,7 +21,7 @@ export function getMockCloudWatchMetrics(): CloudWatchMetric[] {
     {
       namespace: 'AWS/AppRunner',
       metricName: 'CPUUtilization',
-      dimensions: [{ name: 'ServiceName', value: 'hcai-agent' }],
+      dimensions: [{ name: 'ServiceName', value: 'atlas-agent' }],
       timestamp: now,
       value: randomInRange(15, 45),
       unit: 'Percent',
@@ -29,7 +29,7 @@ export function getMockCloudWatchMetrics(): CloudWatchMetric[] {
     {
       namespace: 'AWS/AppRunner',
       metricName: 'MemoryUtilization',
-      dimensions: [{ name: 'ServiceName', value: 'hcai-agent' }],
+      dimensions: [{ name: 'ServiceName', value: 'atlas-agent' }],
       timestamp: now,
       value: randomInRange(30, 60),
       unit: 'Percent',
@@ -37,7 +37,7 @@ export function getMockCloudWatchMetrics(): CloudWatchMetric[] {
     {
       namespace: 'AWS/AppRunner',
       metricName: 'RequestCount',
-      dimensions: [{ name: 'ServiceName', value: 'hcai-agent' }],
+      dimensions: [{ name: 'ServiceName', value: 'atlas-agent' }],
       timestamp: now,
       value: randomInt(100, 500),
       unit: 'Count',
@@ -45,7 +45,7 @@ export function getMockCloudWatchMetrics(): CloudWatchMetric[] {
     {
       namespace: 'AWS/AppRunner',
       metricName: 'RequestLatency',
-      dimensions: [{ name: 'ServiceName', value: 'hcai-agent' }],
+      dimensions: [{ name: 'ServiceName', value: 'atlas-agent' }],
       timestamp: now,
       value: randomInRange(200, 800),
       unit: 'Milliseconds',
@@ -54,7 +54,7 @@ export function getMockCloudWatchMetrics(): CloudWatchMetric[] {
     {
       namespace: 'AWS/RDS',
       metricName: 'DatabaseConnections',
-      dimensions: [{ name: 'DBInstanceIdentifier', value: 'hcai-postgres' }],
+      dimensions: [{ name: 'DBInstanceIdentifier', value: 'atlas-postgres' }],
       timestamp: now,
       value: randomInt(5, 25),
       unit: 'Count',
@@ -62,7 +62,7 @@ export function getMockCloudWatchMetrics(): CloudWatchMetric[] {
     {
       namespace: 'AWS/RDS',
       metricName: 'CPUUtilization',
-      dimensions: [{ name: 'DBInstanceIdentifier', value: 'hcai-postgres' }],
+      dimensions: [{ name: 'DBInstanceIdentifier', value: 'atlas-postgres' }],
       timestamp: now,
       value: randomInRange(10, 35),
       unit: 'Percent',

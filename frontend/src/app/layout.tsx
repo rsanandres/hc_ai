@@ -18,18 +18,18 @@ const description = 'Healthcare AI powered by retrieval-augmented generation wit
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://atlas.rsanandres.com'),
-  title: 'HC AI — Healthcare RAG Demo by Raphael San Andres',
+  title: 'Atlas — Healthcare RAG Demo by Raphael San Andres',
   description,
   openGraph: {
-    title: 'HC AI — Healthcare RAG Demo',
+    title: 'Atlas — Healthcare RAG Demo',
     description,
     url: 'https://atlas.rsanandres.com',
-    siteName: 'HC AI',
+    siteName: 'Atlas',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'HC AI — Healthcare RAG Demo',
+    title: 'Atlas — Healthcare RAG Demo',
     description,
   },
 };

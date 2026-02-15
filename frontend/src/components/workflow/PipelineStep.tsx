@@ -79,7 +79,7 @@ function getStepDetails(stepId: string, queryText?: string, details?: Record<str
       ];
     case 'vector_search':
       return [
-        { label: 'Collection', value: 'hc_ai_table (pgvector)', icon: Database },
+        { label: 'Collection', value: 'atlas_table (pgvector)', icon: Database },  // NOTE: actual DB table is still hc_ai_table — display name only
         { label: 'Documents Retrieved', value: getVal(details, 'docsRetrieved'), icon: FileText, highlight: true },
         { label: 'Search', value: 'Hybrid (BM25 + Semantic)', icon: Zap },
         { label: 'Embedding Model', value: 'Amazon Titan Embed v2', icon: Zap },
