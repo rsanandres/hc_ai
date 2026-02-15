@@ -239,7 +239,7 @@ export function ChatPanel({
             </Typography>
           </Box>
         ) : (
-          <MessageList messages={messages} debugMode={debugMode} onFeedback={onFeedback} onRegenerate={onRegenerate} />
+          <MessageList messages={messages} onFeedback={onFeedback} onRegenerate={onRegenerate} />
         )}
 
         {/* Thinking Panel (Debug Mode) - persists after completion to show progress */}

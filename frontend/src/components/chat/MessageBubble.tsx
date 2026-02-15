@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Chip, Stack, Skeleton, alpha, Collapse, IconButton, Tooltip } from '@mui/material';
+import { useState, useCallback } from 'react';
+import { Box, Typography, Chip, Stack, Skeleton, alpha, IconButton, Tooltip } from '@mui/material';
 import { motion } from 'framer-motion';
-import { User, Bot, FileText, ChevronDown, ChevronUp, Brain, CheckCircle, AlertCircle, ThumbsUp, ThumbsDown, RefreshCw, Copy, Check } from 'lucide-react';
+import { User, Bot, FileText, ThumbsUp, ThumbsDown, RefreshCw, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -12,24 +12,13 @@ import { Message } from '@/types';
 
 interface MessageBubbleProps {
   message: Message;
-  debugMode?: boolean;
   onFeedback?: (messageId: string, feedback: 'positive' | 'negative') => void;
   onRegenerate?: (messageId: string) => void;
 }
 
-export function MessageBubble({ message, debugMode = false, onFeedback, onRegenerate }: MessageBubbleProps) {
+export function MessageBubble({ message, onFeedback, onRegenerate }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isLoading = message.isLoading;
-  const [showThinking, setShowThinking] = useState(false);
-  const hasThinkingSteps = !isUser && (message.researcherOutput || message.validatorOutput);
-
-  // Auto-show thinking steps if debug mode is on
-  useEffect(() => {
-    if (debugMode && hasThinkingSteps && !showThinking) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowThinking(true);
-    }
-  }, [debugMode, hasThinkingSteps, showThinking]);
 
   return (
     <motion.div
@@ -151,103 +140,6 @@ export function MessageBubble({ message, debugMode = false, onFeedback, onRegene
               </Typography>
             )}
           </Box>
-
-          {/* Thinking Steps Toggle */}
-          {hasThinkingSteps && (
-            <Box sx={{ mt: 1.5 }}>
-              <IconButton
-                size="small"
-                onClick={() => setShowThinking(!showThinking)}
-                sx={{
-                  color: 'text.secondary',
-                  '&:hover': { color: 'text.primary' },
-                  fontSize: '0.75rem',
-                }}
-              >
-                {showThinking ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                <Typography variant="caption" sx={{ ml: 0.5 }}>
-                  {showThinking ? 'Hide' : 'Show'} thinking steps
-                </Typography>
-              </IconButton>
-
-              <Collapse in={showThinking}>
-                <Box
-                  sx={{
-                    mt: 1,
-                    p: 1.5,
-                    borderRadius: '8px',
-                    bgcolor: (theme) => alpha(theme.palette.background.paper, 0.4),
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  {message.researcherOutput && (
-                    <Box sx={{ mb: message.validatorOutput ? 2 : 0 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                        <Brain size={14} />
-                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                          Researcher Reasoning
-                        </Typography>
-                      </Box>
-                      <Typography
-                        component="div"
-                        variant="body2"
-                        sx={{
-                          color: 'text.secondary',
-                          fontSize: '0.85rem',
-                          '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
-                          '& code': {
-                            bgcolor: (theme) => alpha(theme.palette.common.white, 0.08),
-                            px: 0.5,
-                            py: 0.25,
-                            borderRadius: '4px',
-                            fontSize: '0.8em',
-                            fontFamily: 'var(--font-geist-mono)',
-                          },
-                        }}
-                      >
-                        <ReactMarkdown>{message.researcherOutput}</ReactMarkdown>
-                      </Typography>
-                    </Box>
-                  )}
-
-                  {message.validatorOutput && (
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                        {message.validationResult === 'APPROVED' ? (
-                          <CheckCircle size={14} color="green" />
-                        ) : (
-                          <AlertCircle size={14} color="orange" />
-                        )}
-                        <Typography variant="caption" sx={{ fontWeight: 600, color: message.validationResult === 'APPROVED' ? 'success.main' : 'warning.main' }}>
-                          Validator {message.validationResult || 'Review'}
-                        </Typography>
-                      </Box>
-                      <Typography
-                        component="div"
-                        variant="body2"
-                        sx={{
-                          color: 'text.secondary',
-                          fontSize: '0.85rem',
-                          '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
-                          '& code': {
-                            bgcolor: (theme) => alpha(theme.palette.common.white, 0.08),
-                            px: 0.5,
-                            py: 0.25,
-                            borderRadius: '4px',
-                            fontSize: '0.8em',
-                            fontFamily: 'var(--font-geist-mono)',
-                          },
-                        }}
-                      >
-                        <ReactMarkdown>{message.validatorOutput}</ReactMarkdown>
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              </Collapse>
-            </Box>
-          )}
 
           {/* Sources */}
           {message.sources && message.sources.length > 0 && (
