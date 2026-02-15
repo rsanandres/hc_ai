@@ -510,7 +510,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <MessageSquare size={18} color={theme.palette.text.secondary} />
               <Typography variant="subtitle1" fontWeight={600} color="text.secondary">
-                Ask a Question about {selectedPatient.name}
+                Ask a Recommended Question about {selectedPatient.name}
               </Typography>
             </Box>
             <Box

@@ -9,16 +9,14 @@ export interface FeaturedPatient {
   chunks?: number;
 }
 
-// 8 original personas + 9 example patients = 17 featured patients
+// 6 original personas + 9 example patients = 15 featured patients
 export const FEATURED_PATIENTS: FeaturedPatient[] = [
   // Original personas (have full FHIR bundles in /data/personas/)
-  { id: "5e81d5b2-af01-4367-9b2e-0cdf479094a4", name: "Danial Larson", age: 65, conditions: ["Recurrent rectal polyp", "Hypertension", "Chronic kidney disease"], description: "Older male with multiple chronic conditions." },
   { id: "616d0449-c98e-46bb-a1f6-0170499fd4e4", name: "Hailee Kovacek", age: 52, conditions: ["Allergies", "Conditions", "Labs", "Procedures"], description: "375 records across 13 resource types.", chunks: 375 },
   { id: "0beb6802-3353-4144-8ae3-97176bce86c3", name: "Doug Christiansen", age: 24, conditions: ["Chronic sinusitis"], description: "Young adult with chronic sinus issues." },
   { id: "6a4168a1-2cfd-4269-8139-8a4a663adfe7", name: "Jamie Hegmann", age: 71, conditions: ["Coronary Heart Disease", "Myocardial Infarction History"], description: "Female patient with significant cardiac history." },
   { id: "7f7ad77a-5dd5-4df0-ba36-f4f1e4b6d368", name: "Carlo Herzog", age: 23, conditions: ["Childhood asthma", "Allergic rhinitis", "Nut allergy"], description: "Young male with multiple allergies and asthma." },
   { id: "53fcaff1-eb44-4257-819b-50b47f311edf", name: "Adam Abbott", age: 31, conditions: ["Normal Pregnancy"], description: "Young female with active pregnancy." },
-  { id: "f883318e-9a81-4f77-9cff-5318a00b777f", name: "Alva Abbott", age: 67, conditions: ["Prediabetes"], description: "Older male managing prediabetes." },
   { id: "4b7098a8-13b8-4916-a379-6ae2c8a70a8a", name: "Amaya Abbott", age: 69, conditions: ["Hypertension", "Chronic sinusitis", "Concussion History"], description: "Older male with hypertension and history of head injury." },
 
   // Data-rich example patients (from example-patients.json)

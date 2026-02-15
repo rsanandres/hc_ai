@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useMemo } from 'react';
-import { Box, Typography, alpha } from '@mui/material';
+import { Box, Typography, Tooltip, alpha } from '@mui/material';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { AreaChart, Area } from 'recharts';
 import { MetricSummary } from '@/types/observability';
@@ -37,14 +37,28 @@ const Sparkline = memo(function Sparkline({ data, index, color = '#14b8a6' }: { 
   );
 });
 
+const METRIC_TOOLTIPS: Record<string, string> = {
+  'ECS CPU': 'CPU utilization of the ECS Fargate task running the backend API',
+  'ECS Memory': 'Memory utilization of the ECS Fargate task',
+  'ALB Requests': 'Total HTTP requests hitting the Application Load Balancer',
+  'RDS CPU': 'CPU utilization of the PostgreSQL RDS instance',
+  'RDS Connections': 'Active database connections to the RDS instance',
+  'p99 Latency': '99th percentile response time through the ALB',
+  'Cache Hit Rate': 'Percentage of reranker requests served from cache',
+  'Cache Size': 'Number of items currently in the reranker cache',
+  'Total Requests': 'Total reranker requests (cache hits + misses)',
+};
+
 export const MetricsCard = memo(function MetricsCard({ metric, index }: MetricsCardProps) {
   const changeIcon = metric.changeType === 'increase' ? TrendingUp :
                      metric.changeType === 'decrease' ? TrendingDown : Minus;
   const ChangeIcon = changeIcon;
-  
+
   const changeColor = 'text.secondary';
+  const tooltip = METRIC_TOOLTIPS[metric.label] || metric.label;
 
   return (
+    <Tooltip title={tooltip} arrow placement="top" enterDelay={300}>
     <Box
       sx={{
         p: 1.5,
@@ -63,7 +77,7 @@ export const MetricsCard = memo(function MetricsCard({ metric, index }: MetricsC
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
           {metric.label}
         </Typography>
-        {metric.change !== undefined && (
+        {metric.change !== undefined && Math.abs(metric.change) <= 100 && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
             <ChangeIcon size={10} color={changeColor} />
             <Typography variant="caption" sx={{ color: changeColor, fontWeight: 500, fontSize: '0.65rem' }}>
@@ -90,5 +104,6 @@ export const MetricsCard = memo(function MetricsCard({ metric, index }: MetricsC
         )}
       </Box>
     </Box>
+    </Tooltip>
   );
 });

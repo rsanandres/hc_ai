@@ -13,7 +13,7 @@ export function RecommendedPrompts({ prompts, onPromptClick }: RecommendedPrompt
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary', fontWeight: 600 }}>
         <MessageSquare size={16} />
-        Step 2: Ask a Question
+        Step 2: Ask a Recommended Question
       </Typography>
       <Stack spacing={1}>
         {prompts.map((prompt, i) => (
